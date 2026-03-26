@@ -1,0 +1,483 @@
+import { Download, Film, LayoutPanelTop, Plus, Rows3, Settings2, Trash2 } from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
+import { ImageField } from "./components/ImageField";
+import { OptionEditor } from "./components/OptionEditor";
+import { PreviewDialog } from "./components/PreviewDialog";
+import {
+  createEmptyForm,
+  DEFAULT_COLLECTION_OPTIONS,
+  DEFAULT_GENRE_OPTIONS,
+  EXPORT_BASENAME,
+  TABLE_COLUMNS,
+  TERRITORY_OPTIONS,
+} from "./lib/constants";
+import type { CropPreviewState, FilmRowState, FormState } from "./lib/types";
+import {
+  buildRowFromForm,
+  cleanOptionList,
+  createExportZip,
+  loadStoredRows,
+  loadStoredOptions,
+  revokeImageSelection,
+  rowToForm,
+  saveStoredRows,
+  saveStoredOptions,
+  triggerDownload,
+} from "./lib/utils";
+
+type TabKey = "importer" | "settings";
+
+export default function App() {
+  const storedOptions = useMemo(
+    () => loadStoredOptions(DEFAULT_GENRE_OPTIONS, DEFAULT_COLLECTION_OPTIONS),
+    [],
+  );
+
+  const [activeTab, setActiveTab] = useState<TabKey>("importer");
+  const [genreOptions, setGenreOptions] = useState<string[]>(storedOptions.genres);
+  const [collectionOptions, setCollectionOptions] = useState<string[]>(storedOptions.collections);
+  const [rows, setRows] = useState<FilmRowState[]>([]);
+  const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
+  const [form, setForm] = useState<FormState>(createEmptyForm());
+  const [preview, setPreview] = useState<CropPreviewState>(null);
+  const [status, setStatus] = useState<string>("Redo att lägga till första raden.");
+  const [error, setError] = useState<string>("");
+  const [isExporting, setIsExporting] = useState(false);
+  const [hasLoadedRows, setHasLoadedRows] = useState(false);
+
+  useEffect(() => {
+    saveStoredOptions(genreOptions, collectionOptions);
+  }, [genreOptions, collectionOptions]);
+
+  useEffect(() => {
+    const storedRows = loadStoredRows();
+    setRows(storedRows);
+    setHasLoadedRows(true);
+    if (storedRows.length > 0) {
+      setStatus(`${storedRows.length} sparade rader laddades.`);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (!hasLoadedRows) {
+      return;
+    }
+
+    let cancelled = false;
+
+    void saveStoredRows(rows).catch(() => {
+      if (!cancelled) {
+        setError("Kunde inte spara tabellrader lokalt.");
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [hasLoadedRows, rows]);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = "dark";
+  }, []);
+
+  function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((current) => ({ ...current, [key]: value }));
+  }
+
+  function replaceImage(key: "landscapeAsset" | "portraitAsset", nextValue: FormState[typeof key]) {
+    setForm((current) => {
+      revokeImageSelection(current[key]);
+      return { ...current, [key]: nextValue };
+    });
+  }
+
+  function resetForm() {
+    setSelectedRowId(null);
+    setError("");
+    setStatus("Formuläret återställdes.");
+    setForm((current) => {
+      revokeImageSelection(current.landscapeAsset);
+      revokeImageSelection(current.portraitAsset);
+      return createEmptyForm();
+    });
+  }
+
+  function saveRow() {
+    try {
+      const built = buildRowFromForm(form);
+      const rowWithStableId = selectedRowId ? { ...built, id: selectedRowId } : built;
+
+      setRows((current) => {
+        if (!selectedRowId) {
+          return [...current, rowWithStableId];
+        }
+        return current.map((row) => {
+          if (row.id !== selectedRowId) {
+            return row;
+          }
+          revokeImageSelection(row.landscapeAsset);
+          revokeImageSelection(row.portraitAsset);
+          return rowWithStableId;
+        });
+      });
+
+      setStatus(selectedRowId ? "Raden uppdaterades." : "Ny rad lades till.");
+      setError("");
+      setSelectedRowId(null);
+      setForm(createEmptyForm());
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Kunde inte spara raden.");
+    }
+  }
+
+  function editRow(rowId: string) {
+    const row = rows.find((candidate) => candidate.id === rowId);
+    if (!row) {
+      return;
+    }
+    setSelectedRowId(row.id);
+    setForm(rowToForm(row));
+    setStatus(`Redigerar FilmID ${row.FilmID}.`);
+    setError("");
+  }
+
+  function deleteRow(rowId: string) {
+    setRows((current) => {
+      const row = current.find((candidate) => candidate.id === rowId);
+      if (row) {
+        revokeImageSelection(row.landscapeAsset);
+        revokeImageSelection(row.portraitAsset);
+      }
+      return current.filter((candidate) => candidate.id !== rowId);
+    });
+    if (selectedRowId === rowId) {
+      setSelectedRowId(null);
+      setForm(createEmptyForm());
+    }
+    setStatus("Raden togs bort.");
+    setError("");
+  }
+
+  async function exportPackage() {
+    if (rows.length === 0) {
+      setError("Tabellen är tom.");
+      return;
+    }
+
+    try {
+      setIsExporting(true);
+      const blob = await createExportZip(rows);
+      triggerDownload(blob, `${EXPORT_BASENAME}.zip`);
+      setStatus("Export klar. ZIP-filen laddades ner.");
+      setError("");
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Export misslyckades.");
+    } finally {
+      setIsExporting(false);
+    }
+  }
+
+  function updateGenres(nextGenres: string[]) {
+    const cleaned = cleanOptionList(nextGenres, DEFAULT_GENRE_OPTIONS);
+    setGenreOptions(cleaned);
+    setForm((current) => ({
+      ...current,
+      genres: current.genres.filter((value) => cleaned.includes(value)),
+    }));
+  }
+
+  function updateCollections(nextCollections: string[]) {
+    const cleaned = cleanOptionList(nextCollections, DEFAULT_COLLECTION_OPTIONS);
+    setCollectionOptions(cleaned);
+    setForm((current) => ({
+      ...current,
+      collections: current.collections.filter((value) => cleaned.includes(value)),
+    }));
+  }
+
+  return (
+    <>
+      <div className="app-shell">
+        <header className="hero">
+          <div className="hero__copy">
+            <div className="hero__topline">
+              <div>
+                <div className="sfi-logo" aria-label="Svenska Filminstitutet">
+                  <div className="sfi-logo__mark" aria-hidden="true">
+                    <span className="sfi-logo__dot" />
+                    <span className="sfi-logo__dot" />
+                    <span className="sfi-logo__dot" />
+                    <span className="sfi-logo__block sfi-logo__block--small" />
+                    <span className="sfi-logo__block sfi-logo__block--wide" />
+                  </div>
+                  <div className="sfi-logo__text">
+                    <span>Svenska</span>
+                    <span>Filminstitutet</span>
+                  </div>
+                </div>
+                <p className="eyebrow">CinePlay Importer</p>
+                <h1>Importera metadata och exportera ett färdigt paket.</h1>
+              </div>
+            </div>
+            <p className="hero__text">
+              Lägg till eller redigera rader, kontrollera hur bilderna kommer att beskäras och exportera sedan JSON och bilder i ett enda ZIP-paket.
+            </p>
+          </div>
+
+          <div className="hero__stats">
+            <div className="stat-card">
+              <span>Rader</span>
+              <strong>{rows.length}</strong>
+            </div>
+            <div className="stat-card">
+              <span>Genres</span>
+              <strong>{genreOptions.length}</strong>
+            </div>
+            <div className="stat-card">
+              <span>Collections</span>
+              <strong>{collectionOptions.length}</strong>
+            </div>
+          </div>
+        </header>
+
+        <nav className="tabs">
+          <button
+            type="button"
+            className={activeTab === "importer" ? "tab tab--active" : "tab"}
+            onClick={() => setActiveTab("importer")}
+          >
+            <LayoutPanelTop size={16} />
+            Importer
+          </button>
+          <button
+            type="button"
+            className={activeTab === "settings" ? "tab tab--active" : "tab"}
+            onClick={() => setActiveTab("settings")}
+          >
+            <Settings2 size={16} />
+            Inställningar
+          </button>
+        </nav>
+
+        {error ? <div className="status status--error">{error}</div> : null}
+        {!error ? <div className="status">{status}</div> : null}
+
+        {activeTab === "importer" ? (
+          <main className="layout-grid">
+            <section className="panel panel--form">
+              <div className="panel__header">
+                <div>
+                  <p className="eyebrow">{selectedRowId ? "Redigera rad" : "Ny rad"}</p>
+                  <h2>Lägg till eller uppdatera metadata</h2>
+                </div>
+                <Film size={20} />
+              </div>
+
+              <div className="form-grid form-grid--primary">
+                <label className="field">
+                  <span>FilmID</span>
+                  <input value={form.filmId} onChange={(event) => updateForm("filmId", event.target.value)} />
+                </label>
+
+                <label className="field field--compact">
+                  <span>PublicationStart</span>
+                  <input
+                    type="date"
+                    value={form.publicationStart}
+                    onChange={(event) => updateForm("publicationStart", event.target.value)}
+                  />
+                </label>
+
+                <label className="field field--compact">
+                  <span>PublicationEnd</span>
+                  <input
+                    type="date"
+                    value={form.publicationEnd}
+                    onChange={(event) => updateForm("publicationEnd", event.target.value)}
+                  />
+                </label>
+
+                <label className="field field--compact">
+                  <span>Territory</span>
+                  <select value={form.territory} onChange={(event) => updateForm("territory", event.target.value)}>
+                    {TERRITORY_OPTIONS.map((territory) => (
+                      <option key={territory} value={territory}>
+                        {territory}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <label className="checkbox-field checkbox-field--inline">
+                  <input
+                    type="checkbox"
+                    checked={form.isFree}
+                    onChange={(event) => updateForm("isFree", event.target.checked)}
+                  />
+                  <span>Gratis</span>
+                </label>
+              </div>
+
+              <div className="form-grid form-grid--secondary">
+                <fieldset className="field fieldset">
+                  <legend>Genres</legend>
+                  <div className="chip-grid">
+                    {genreOptions.map((genre) => {
+                      const selected = form.genres.includes(genre);
+                      return (
+                        <button
+                          key={genre}
+                          type="button"
+                          className={selected ? "chip chip--selected" : "chip"}
+                          onClick={() =>
+                            updateForm(
+                              "genres",
+                              selected
+                                ? form.genres.filter((value) => value !== genre)
+                                : [...form.genres, genre],
+                            )
+                          }
+                        >
+                          {genre}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <fieldset className="field fieldset">
+                  <legend>Collections</legend>
+                  <div className="chip-grid">
+                    {collectionOptions.map((collection) => {
+                      const selected = form.collections.includes(collection);
+                      return (
+                        <button
+                          key={collection}
+                          type="button"
+                          className={selected ? "chip chip--selected" : "chip"}
+                          onClick={() =>
+                            updateForm(
+                              "collections",
+                              selected
+                                ? form.collections.filter((value) => value !== collection)
+                                : [...form.collections, collection],
+                            )
+                          }
+                        >
+                          {collection}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <label className="field field--span-2">
+                  <span>Textbeskrivning</span>
+                  <textarea
+                    rows={5}
+                    value={form.description}
+                    onChange={(event) => updateForm("description", event.target.value)}
+                  />
+                </label>
+              </div>
+
+              <div className="image-grid">
+                <ImageField
+                  title="Landscape image"
+                  imageKind="landscape"
+                  value={form.landscapeAsset}
+                  onChange={(value) => replaceImage("landscapeAsset", value)}
+                  onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
+                />
+                <ImageField
+                  title="Vertical image"
+                  imageKind="portrait"
+                  value={form.portraitAsset}
+                  onChange={(value) => replaceImage("portraitAsset", value)}
+                  onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
+                />
+              </div>
+
+              <div className="button-row">
+                <button className="ghost-button" type="button" onClick={resetForm}>
+                  Ny rad
+                </button>
+                <button className="primary-button" type="button" onClick={saveRow}>
+                  <Plus size={16} />
+                  Lägg till / Uppdatera
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={exportPackage}
+                  disabled={rows.length === 0 || isExporting}
+                >
+                  <Download size={16} />
+                  {isExporting ? "Exporterar..." : "Exportera ZIP"}
+                </button>
+              </div>
+            </section>
+
+            <section className="panel">
+              <div className="panel__header">
+                <div>
+                  <p className="eyebrow">Rader</p>
+                  <h2>Tabell med exportunderlag</h2>
+                </div>
+                <Rows3 size={20} />
+              </div>
+
+              <div className="table-scroll">
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      {TABLE_COLUMNS.map((column) => (
+                        <th key={column.key}>{column.label}</th>
+                      ))}
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rows.length === 0 ? (
+                      <tr>
+                        <td colSpan={TABLE_COLUMNS.length + 1} className="empty-state">
+                          Tabellen är tom.
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((row) => (
+                        <tr key={row.id}>
+                          {TABLE_COLUMNS.map((column) => (
+                            <td key={column.key}>{column.value(row)}</td>
+                          ))}
+                          <td>
+                            <div className="table-actions">
+                              <button className="secondary-button" type="button" onClick={() => editRow(row.id)}>
+                                Edit
+                              </button>
+                              <button className="ghost-button" type="button" onClick={() => deleteRow(row.id)}>
+                                <Trash2 size={16} />
+                                Delete
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+          </main>
+        ) : (
+          <main className="settings-grid">
+            <OptionEditor title="Genres" values={genreOptions} onChange={updateGenres} />
+            <OptionEditor title="Collections" values={collectionOptions} onChange={updateCollections} />
+          </main>
+        )}
+      </div>
+
+      <PreviewDialog preview={preview} onClose={() => setPreview(null)} />
+    </>
+  );
+}
