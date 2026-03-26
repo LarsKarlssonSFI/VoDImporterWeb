@@ -202,20 +202,6 @@ export default function App() {
           <div className="hero__copy">
             <div className="hero__topline">
               <div>
-                <div className="sfi-logo" aria-label="Svenska Filminstitutet">
-                  <div className="sfi-logo__mark" aria-hidden="true">
-                    <span className="sfi-logo__dot" />
-                    <span className="sfi-logo__dot" />
-                    <span className="sfi-logo__dot" />
-                    <span className="sfi-logo__block sfi-logo__block--small" />
-                    <span className="sfi-logo__block sfi-logo__block--wide" />
-                  </div>
-                  <div className="sfi-logo__text">
-                    <span>Svenska</span>
-                    <span>Filminstitutet</span>
-                  </div>
-                </div>
-                <p className="eyebrow">CinePlay Importer</p>
                 <h1>Importera metadata och exportera ett färdigt paket.</h1>
               </div>
             </div>

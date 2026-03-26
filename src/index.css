@@ -125,49 +125,6 @@ input:not([type]) {
   gap: 16px;
 }
 
-.sfi-logo {
-  display: inline-flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 18px;
-  color: var(--surface-text);
-}
-
-.sfi-logo__mark {
-  display: grid;
-  grid-template-columns: repeat(3, 36px);
-  grid-template-rows: 36px 28px;
-  gap: 8px;
-  flex: 0 0 auto;
-}
-
-.sfi-logo__dot,
-.sfi-logo__block {
-  display: block;
-  background: currentColor;
-}
-
-.sfi-logo__dot {
-  border-radius: 999px;
-}
-
-.sfi-logo__block--small {
-  grid-column: 1;
-}
-
-.sfi-logo__block--wide {
-  grid-column: 2 / span 2;
-}
-
-.sfi-logo__text {
-  display: grid;
-  gap: 2px;
-  line-height: 0.94;
-  letter-spacing: -0.03em;
-  font-weight: 700;
-  font-size: clamp(1.75rem, 4vw, 3rem);
-}
-
 .hero__copy h1 {
   margin: 0;
   max-width: 16ch;
@@ -818,20 +775,6 @@ input:not([type]) {
   .hero__topline {
     flex-direction: column;
     align-items: stretch;
-  }
-
-  .sfi-logo {
-    gap: 12px;
-  }
-
-  .sfi-logo__mark {
-    grid-template-columns: repeat(3, 28px);
-    grid-template-rows: 28px 22px;
-    gap: 6px;
-  }
-
-  .sfi-logo__text {
-    font-size: clamp(1.2rem, 6vw, 2rem);
   }
 
   .tabs {
