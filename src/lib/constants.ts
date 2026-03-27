@@ -24,7 +24,7 @@ export const DEFAULT_COLLECTION_OPTIONS = [
   "Temasamling",
 ];
 
-export const TERRITORY_OPTIONS = ["Sweden", "Denmark", "Finland", "Norway", "Nordics"];
+export const DEFAULT_TERRITORY_OPTIONS = ["Sverige", "Danmark", "Finland", "Norge", "Norden"];
 
 export type TableColumn = {
   key: string;
@@ -105,7 +105,7 @@ export const createEmptyForm = (): FormState => ({
   genres: [],
   description: "",
   collections: [],
-  territory: TERRITORY_OPTIONS[0],
+  territory: DEFAULT_TERRITORY_OPTIONS[0],
   connectedFilmIds: "",
   connectedCollections: "",
   landscapeAsset: null,

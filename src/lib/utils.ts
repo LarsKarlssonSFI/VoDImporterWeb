@@ -20,6 +20,7 @@ const imageLoadCache = new WeakMap<File, Promise<HTMLImageElement>>();
 type StoredOptions = {
   genres?: string[];
   collections?: string[];
+  territories?: string[];
 };
 
 type StoredImageSelection = {
@@ -69,13 +70,14 @@ export function cleanOptionList(values: string[], fallback: string[]): string[] 
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
-export function loadStoredOptions(defaultGenres: string[], defaultCollections: string[]) {
+export function loadStoredOptions(defaultGenres: string[], defaultCollections: string[], defaultTerritories: string[]) {
   try {
     const raw = window.localStorage.getItem(OPTIONS_STORAGE_KEY);
     if (!raw) {
       return {
         genres: defaultGenres,
         collections: defaultCollections,
+        territories: defaultTerritories,
       };
     }
 
@@ -83,21 +85,24 @@ export function loadStoredOptions(defaultGenres: string[], defaultCollections: s
     return {
       genres: cleanOptionList(parsed.genres ?? defaultGenres, defaultGenres),
       collections: cleanOptionList(parsed.collections ?? defaultCollections, defaultCollections),
+      territories: cleanOptionList(parsed.territories ?? defaultTerritories, defaultTerritories),
     };
   } catch {
     return {
       genres: defaultGenres,
       collections: defaultCollections,
+      territories: defaultTerritories,
     };
   }
 }
 
-export function saveStoredOptions(genres: string[], collections: string[]) {
+export function saveStoredOptions(genres: string[], collections: string[], territories: string[]) {
   window.localStorage.setItem(
     OPTIONS_STORAGE_KEY,
     JSON.stringify({
       genres,
       collections,
+      territories,
     }),
   );
 }

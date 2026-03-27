@@ -7,9 +7,9 @@ import {
   createEmptyForm,
   DEFAULT_COLLECTION_OPTIONS,
   DEFAULT_GENRE_OPTIONS,
+  DEFAULT_TERRITORY_OPTIONS,
   EXPORT_BASENAME,
   TABLE_COLUMNS,
-  TERRITORY_OPTIONS,
 } from "./lib/constants";
 import type { CropPreviewState, FilmRowState, FormState } from "./lib/types";
 import {
@@ -30,13 +30,14 @@ const ENABLE_FILM_API = import.meta.env.DEV;
 
 export default function App() {
   const storedOptions = useMemo(
-    () => loadStoredOptions(DEFAULT_GENRE_OPTIONS, DEFAULT_COLLECTION_OPTIONS),
+    () => loadStoredOptions(DEFAULT_GENRE_OPTIONS, DEFAULT_COLLECTION_OPTIONS, DEFAULT_TERRITORY_OPTIONS),
     [],
   );
 
   const [activeTab, setActiveTab] = useState<TabKey>("importer");
   const [genreOptions, setGenreOptions] = useState<string[]>(storedOptions.genres);
   const [collectionOptions, setCollectionOptions] = useState<string[]>(storedOptions.collections);
+  const [territoryOptions, setTerritoryOptions] = useState<string[]>(storedOptions.territories);
   const [rows, setRows] = useState<FilmRowState[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(createEmptyForm());
@@ -48,8 +49,19 @@ export default function App() {
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
 
   useEffect(() => {
-    saveStoredOptions(genreOptions, collectionOptions);
-  }, [genreOptions, collectionOptions]);
+    saveStoredOptions(genreOptions, collectionOptions, territoryOptions);
+  }, [genreOptions, collectionOptions, territoryOptions]);
+
+  useEffect(() => {
+    if (territoryOptions.includes(form.territory)) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      territory: territoryOptions[0] ?? "",
+    }));
+  }, [form.territory, territoryOptions]);
 
   useEffect(() => {
     const storedRows = loadStoredRows();
@@ -260,6 +272,15 @@ export default function App() {
     }));
   }
 
+  function updateTerritories(nextTerritories: string[]) {
+    const cleaned = cleanOptionList(nextTerritories, DEFAULT_TERRITORY_OPTIONS);
+    setTerritoryOptions(cleaned);
+    setForm((current) => ({
+      ...current,
+      territory: cleaned.includes(current.territory) ? current.territory : cleaned[0],
+    }));
+  }
+
   return (
     <>
       <div className="app-shell">
@@ -360,7 +381,7 @@ export default function App() {
                 <label className="field field--compact">
                   <span>Territorium</span>
                   <select value={form.territory} onChange={(event) => updateForm("territory", event.target.value)}>
-                    {TERRITORY_OPTIONS.map((territory) => (
+                    {territoryOptions.map((territory) => (
                       <option key={territory} value={territory}>
                         {territory}
                       </option>
@@ -533,6 +554,7 @@ export default function App() {
           <main className="settings-grid">
             <OptionEditor title="Genres" values={genreOptions} onChange={updateGenres} />
             <OptionEditor title="Collections" values={collectionOptions} onChange={updateCollections} />
+            <OptionEditor title="Territorier" values={territoryOptions} onChange={updateTerritories} />
           </main>
         )}
       </div>
