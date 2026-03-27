@@ -39,18 +39,23 @@ export const TABLE_COLUMNS: TableColumn[] = [
     value: (row) => String(row.FilmID),
   },
   {
+    key: "title",
+    label: "Titel",
+    value: (row) => row.Title,
+  },
+  {
     key: "publicationStart",
-    label: "PublicationStart",
+    label: "Start",
     value: (row) => row.PublicationStart,
   },
   {
     key: "publicationEnd",
-    label: "PublicationEnd",
+    label: "Slut",
     value: (row) => row.PublicationEnd,
   },
   {
     key: "isFree",
-    label: "IsFree",
+    label: "Gratis",
     value: (row) => (row.IsFree ? "✔" : ""),
   },
   {
@@ -65,12 +70,12 @@ export const TABLE_COLUMNS: TableColumn[] = [
   },
   {
     key: "landscapeImage",
-    label: "H-Image",
+    label: "H-bild",
     value: (row) => (row.LandscapeImage ? "✔" : ""),
   },
   {
     key: "portraitImage",
-    label: "V-Image",
+    label: "V-bild",
     value: (row) => (row.PortraitImage ? "✔" : ""),
   },
 //  {
@@ -93,6 +98,7 @@ export const EXPORT_BASENAME = "cineplay_export";
 
 export const createEmptyForm = (): FormState => ({
   filmId: "",
+  title: "",
   publicationStart: "2026-05-04",
   publicationEnd: "",
   isFree: true,

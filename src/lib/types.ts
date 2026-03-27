@@ -33,6 +33,7 @@ export type ImageSelection = {
 };
 
 export type FilmRowState = ExportRow & {
+  Title: string;
   id: string;
   landscapeAsset: ImageSelection | null;
   portraitAsset: ImageSelection | null;
@@ -40,6 +41,7 @@ export type FilmRowState = ExportRow & {
 
 export type FormState = {
   filmId: string;
+  title: string;
   publicationStart: string;
   publicationEnd: string;
   isFree: boolean;

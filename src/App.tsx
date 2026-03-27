@@ -26,6 +26,7 @@ import {
 } from "./lib/utils";
 
 type TabKey = "importer" | "settings";
+const ENABLE_FILM_API = import.meta.env.DEV;
 
 export default function App() {
   const storedOptions = useMemo(
@@ -44,6 +45,7 @@ export default function App() {
   const [error, setError] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
+  const [isLoadingTitle, setIsLoadingTitle] = useState(false);
 
   useEffect(() => {
     saveStoredOptions(genreOptions, collectionOptions);
@@ -79,6 +81,69 @@ export default function App() {
   useEffect(() => {
     document.documentElement.dataset.theme = "dark";
   }, []);
+
+  useEffect(() => {
+    if (!ENABLE_FILM_API) {
+      setIsLoadingTitle(false);
+      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
+      return;
+    }
+
+    const filmId = form.filmId.trim();
+    if (filmId.length === 0) {
+      setIsLoadingTitle(false);
+      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
+      return;
+    }
+
+    if (!/^\d{1,6}$/.test(filmId)) {
+      setIsLoadingTitle(false);
+      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
+      return;
+    }
+
+    const controller = new AbortController();
+    const timeoutId = window.setTimeout(async () => {
+      try {
+        setIsLoadingTitle(true);
+        const response = await fetch(`/api/film-title?filmId=${encodeURIComponent(filmId)}`, {
+          signal: controller.signal,
+        });
+        const payload = (await response.json()) as { error?: string; title?: string | null };
+
+        if (!response.ok) {
+          throw new Error(payload.error || "Kunde inte hämta filmtitel.");
+        }
+
+        setForm((current) => {
+          if (current.filmId.trim() !== filmId) {
+            return current;
+          }
+          return {
+            ...current,
+            title: payload.title?.trim() || "",
+          };
+        });
+        setError("");
+      } catch (nextError) {
+        if (controller.signal.aborted) {
+          return;
+        }
+        setForm((current) => (current.filmId.trim() === filmId ? { ...current, title: "" } : current));
+        setError(nextError instanceof Error ? nextError.message : "Kunde inte hämta filmtitel.");
+      } finally {
+        if (!controller.signal.aborted) {
+          setIsLoadingTitle(false);
+        }
+      }
+    }, 300);
+
+    return () => {
+      controller.abort();
+      window.clearTimeout(timeoutId);
+      setIsLoadingTitle(false);
+    };
+  }, [form.filmId]);
 
   function updateForm<K extends keyof FormState>(key: K, value: FormState[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -260,13 +325,22 @@ export default function App() {
               </div>
 
               <div className="form-grid form-grid--primary">
-                <label className="field">
+                <label className="field field--id">
                   <span>FilmID</span>
-                  <input value={form.filmId} onChange={(event) => updateForm("filmId", event.target.value)} />
+                  <input
+                    maxLength={6}
+                    value={form.filmId}
+                    onChange={(event) => updateForm("filmId", event.target.value.slice(0, 6))}
+                  />
+                </label>
+
+                <label className="field field--title">
+                  <span>Titel</span>
+                  <input readOnly value={isLoadingTitle ? "Hämtar titel..." : form.title || "Filmens titel"} />
                 </label>
 
                 <label className="field field--compact">
-                  <span>PublicationStart</span>
+                  <span>Publiceringsstart</span>
                   <input
                     type="date"
                     value={form.publicationStart}
@@ -275,7 +349,7 @@ export default function App() {
                 </label>
 
                 <label className="field field--compact">
-                  <span>PublicationEnd</span>
+                  <span>Avpublicering</span>
                   <input
                     type="date"
                     value={form.publicationEnd}
@@ -284,7 +358,7 @@ export default function App() {
                 </label>
 
                 <label className="field field--compact">
-                  <span>Territory</span>
+                  <span>Territorium</span>
                   <select value={form.territory} onChange={(event) => updateForm("territory", event.target.value)}>
                     {TERRITORY_OPTIONS.map((territory) => (
                       <option key={territory} value={territory}>
@@ -369,14 +443,14 @@ export default function App() {
 
               <div className="image-grid">
                 <ImageField
-                  title="Landscape image"
+                  title="Landskapsformat"
                   imageKind="landscape"
                   value={form.landscapeAsset}
                   onChange={(value) => replaceImage("landscapeAsset", value)}
                   onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
                 />
                 <ImageField
-                  title="Vertical image"
+                  title="Porträttformat"
                   imageKind="portrait"
                   value={form.portraitAsset}
                   onChange={(value) => replaceImage("portraitAsset", value)}
@@ -420,7 +494,7 @@ export default function App() {
                       {TABLE_COLUMNS.map((column) => (
                         <th key={column.key}>{column.label}</th>
                       ))}
-                      <th>Actions</th>
+                      <th>Åtgärd</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -439,11 +513,11 @@ export default function App() {
                           <td>
                             <div className="table-actions">
                               <button className="secondary-button" type="button" onClick={() => editRow(row.id)}>
-                                Edit
+                                Redigera
                               </button>
                               <button className="ghost-button" type="button" onClick={() => deleteRow(row.id)}>
                                 <Trash2 size={16} />
-                                Delete
+                                Ta bort
                               </button>
                             </div>
                           </td>

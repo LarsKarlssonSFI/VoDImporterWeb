@@ -177,6 +177,7 @@ export function loadStoredRows(): FilmRowState[] {
     const parsed = JSON.parse(raw) as StoredRow[];
     return parsed.map((row) => ({
       ...row,
+      Title: typeof row.Title === "string" ? row.Title : "",
       landscapeAsset: deserializeImageSelection(row.landscapeAsset),
       portraitAsset: deserializeImageSelection(row.portraitAsset),
     }));
@@ -431,6 +432,7 @@ export function buildRowFromForm(form: FormState): FilmRowState {
   return {
     id: crypto.randomUUID(),
     FilmID: filmId,
+    Title: form.title.trim(),
     PublicationStart: form.publicationStart,
     PublicationEnd: form.publicationEnd,
     IsFree: form.isFree,
@@ -451,6 +453,7 @@ export function buildRowFromForm(form: FormState): FilmRowState {
 export function rowToForm(row: FilmRowState): FormState {
   return {
     filmId: String(row.FilmID),
+    title: row.Title,
     publicationStart: row.PublicationStart,
     publicationEnd: row.PublicationEnd,
     isFree: row.IsFree,
