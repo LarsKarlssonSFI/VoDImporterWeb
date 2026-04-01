@@ -24,6 +24,8 @@ export const DEFAULT_COLLECTION_OPTIONS = [
   "Temasamling",
 ];
 
+export const DEFAULT_FILM_CATEGORY_OPTIONS = ["Spelfilm", "Beställningsfilm"];
+
 export const DEFAULT_TERRITORY_OPTIONS = ["Sverige", "Danmark", "Finland", "Norge", "Norden"];
 
 export type TableColumn = {
@@ -57,6 +59,11 @@ export const TABLE_COLUMNS: TableColumn[] = [
     key: "isFree",
     label: "Gratis",
     value: (row) => (row.IsFree ? "✔" : ""),
+  },
+  {
+    key: "filmCategory",
+    label: "Filmkategori",
+    value: (row) => row.FilmCategory,
   },
   {
     key: "genres",
@@ -102,6 +109,7 @@ export const createEmptyForm = (): FormState => ({
   publicationStart: "2026-05-04",
   publicationEnd: "",
   isFree: true,
+  filmCategory: DEFAULT_FILM_CATEGORY_OPTIONS[0],
   genres: [],
   description: "",
   collections: [],

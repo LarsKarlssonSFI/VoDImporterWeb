@@ -6,6 +6,7 @@ import { PreviewDialog } from "./components/PreviewDialog";
 import {
   createEmptyForm,
   DEFAULT_COLLECTION_OPTIONS,
+  DEFAULT_FILM_CATEGORY_OPTIONS,
   DEFAULT_GENRE_OPTIONS,
   DEFAULT_TERRITORY_OPTIONS,
   EXPORT_BASENAME,
@@ -26,15 +27,21 @@ import {
 } from "./lib/utils";
 
 type TabKey = "importer" | "settings";
-const ENABLE_FILM_API = import.meta.env.DEV;
 
 export default function App() {
   const storedOptions = useMemo(
-    () => loadStoredOptions(DEFAULT_GENRE_OPTIONS, DEFAULT_COLLECTION_OPTIONS, DEFAULT_TERRITORY_OPTIONS),
+    () =>
+      loadStoredOptions(
+        DEFAULT_FILM_CATEGORY_OPTIONS,
+        DEFAULT_GENRE_OPTIONS,
+        DEFAULT_COLLECTION_OPTIONS,
+        DEFAULT_TERRITORY_OPTIONS,
+      ),
     [],
   );
 
   const [activeTab, setActiveTab] = useState<TabKey>("importer");
+  const [filmCategoryOptions, setFilmCategoryOptions] = useState<string[]>(storedOptions.filmCategories);
   const [genreOptions, setGenreOptions] = useState<string[]>(storedOptions.genres);
   const [collectionOptions, setCollectionOptions] = useState<string[]>(storedOptions.collections);
   const [territoryOptions, setTerritoryOptions] = useState<string[]>(storedOptions.territories);
@@ -49,8 +56,19 @@ export default function App() {
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
 
   useEffect(() => {
-    saveStoredOptions(genreOptions, collectionOptions, territoryOptions);
-  }, [genreOptions, collectionOptions, territoryOptions]);
+    saveStoredOptions(filmCategoryOptions, genreOptions, collectionOptions, territoryOptions);
+  }, [collectionOptions, filmCategoryOptions, genreOptions, territoryOptions]);
+
+  useEffect(() => {
+    if (filmCategoryOptions.includes(form.filmCategory)) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      filmCategory: filmCategoryOptions[0] ?? "",
+    }));
+  }, [filmCategoryOptions, form.filmCategory]);
 
   useEffect(() => {
     if (territoryOptions.includes(form.territory)) {
@@ -95,12 +113,6 @@ export default function App() {
   }, []);
 
   useEffect(() => {
-    if (!ENABLE_FILM_API) {
-      setIsLoadingTitle(false);
-      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
-      return;
-    }
-
     const filmId = form.filmId.trim();
     if (filmId.length === 0) {
       setIsLoadingTitle(false);
@@ -263,6 +275,15 @@ export default function App() {
     }));
   }
 
+  function updateFilmCategories(nextFilmCategories: string[]) {
+    const cleaned = cleanOptionList(nextFilmCategories, DEFAULT_FILM_CATEGORY_OPTIONS);
+    setFilmCategoryOptions(cleaned);
+    setForm((current) => ({
+      ...current,
+      filmCategory: cleaned.includes(current.filmCategory) ? current.filmCategory : cleaned[0],
+    }));
+  }
+
   function updateCollections(nextCollections: string[]) {
     const cleaned = cleanOptionList(nextCollections, DEFAULT_COLLECTION_OPTIONS);
     setCollectionOptions(cleaned);
@@ -306,8 +327,8 @@ export default function App() {
               <strong>{genreOptions.length}</strong>
             </div>
             <div className="stat-card">
-              <span>Collections</span>
-              <strong>{collectionOptions.length}</strong>
+              <span>Kategorier</span>
+              <strong>{filmCategoryOptions.length}</strong>
             </div>
           </div>
         </header>
@@ -452,6 +473,25 @@ export default function App() {
                   </div>
                 </fieldset>
 
+                <fieldset className="field fieldset">
+                  <legend>Filmkategori</legend>
+                  <div className="chip-grid">
+                    {filmCategoryOptions.map((filmCategory) => {
+                      const selected = form.filmCategory === filmCategory;
+                      return (
+                        <button
+                          key={filmCategory}
+                          type="button"
+                          className={selected ? "chip chip--selected" : "chip"}
+                          onClick={() => updateForm("filmCategory", filmCategory)}
+                        >
+                          {filmCategory}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
                 <label className="field field--span-2">
                   <span>Textbeskrivning</span>
                   <textarea
@@ -552,6 +592,7 @@ export default function App() {
           </main>
         ) : (
           <main className="settings-grid">
+            <OptionEditor title="Filmkategorier" values={filmCategoryOptions} onChange={updateFilmCategories} />
             <OptionEditor title="Genres" values={genreOptions} onChange={updateGenres} />
             <OptionEditor title="Collections" values={collectionOptions} onChange={updateCollections} />
             <OptionEditor title="Territorier" values={territoryOptions} onChange={updateTerritories} />

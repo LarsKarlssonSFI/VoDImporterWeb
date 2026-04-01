@@ -17,6 +17,7 @@ export type ExportRow = {
   PublicationEnd: string;
   IsFree: boolean;
   Territory: string;
+  FilmCategory: string;
   Genres: string[];
   Description: string;
   Collections: string[];
@@ -46,6 +47,7 @@ export type FormState = {
   publicationEnd: string;
   isFree: boolean;
   territory: string;
+  filmCategory: string;
   genres: string[];
   description: string;
   collections: string[];

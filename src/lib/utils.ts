@@ -18,6 +18,7 @@ import type {
 const imageLoadCache = new WeakMap<File, Promise<HTMLImageElement>>();
 
 type StoredOptions = {
+  filmCategories?: string[];
   genres?: string[];
   collections?: string[];
   territories?: string[];
@@ -70,11 +71,17 @@ export function cleanOptionList(values: string[], fallback: string[]): string[] 
   return cleaned.length > 0 ? cleaned : fallback;
 }
 
-export function loadStoredOptions(defaultGenres: string[], defaultCollections: string[], defaultTerritories: string[]) {
+export function loadStoredOptions(
+  defaultFilmCategories: string[],
+  defaultGenres: string[],
+  defaultCollections: string[],
+  defaultTerritories: string[],
+) {
   try {
     const raw = window.localStorage.getItem(OPTIONS_STORAGE_KEY);
     if (!raw) {
       return {
+        filmCategories: defaultFilmCategories,
         genres: defaultGenres,
         collections: defaultCollections,
         territories: defaultTerritories,
@@ -83,12 +90,14 @@ export function loadStoredOptions(defaultGenres: string[], defaultCollections: s
 
     const parsed = JSON.parse(raw) as StoredOptions;
     return {
+      filmCategories: cleanOptionList(parsed.filmCategories ?? defaultFilmCategories, defaultFilmCategories),
       genres: cleanOptionList(parsed.genres ?? defaultGenres, defaultGenres),
       collections: cleanOptionList(parsed.collections ?? defaultCollections, defaultCollections),
       territories: cleanOptionList(parsed.territories ?? defaultTerritories, defaultTerritories),
     };
   } catch {
     return {
+      filmCategories: defaultFilmCategories,
       genres: defaultGenres,
       collections: defaultCollections,
       territories: defaultTerritories,
@@ -96,10 +105,16 @@ export function loadStoredOptions(defaultGenres: string[], defaultCollections: s
   }
 }
 
-export function saveStoredOptions(genres: string[], collections: string[], territories: string[]) {
+export function saveStoredOptions(
+  filmCategories: string[],
+  genres: string[],
+  collections: string[],
+  territories: string[],
+) {
   window.localStorage.setItem(
     OPTIONS_STORAGE_KEY,
     JSON.stringify({
+      filmCategories,
       genres,
       collections,
       territories,
@@ -183,6 +198,7 @@ export function loadStoredRows(): FilmRowState[] {
     return parsed.map((row) => ({
       ...row,
       Title: typeof row.Title === "string" ? row.Title : "",
+      FilmCategory: typeof row.FilmCategory === "string" ? row.FilmCategory : "",
       landscapeAsset: deserializeImageSelection(row.landscapeAsset),
       portraitAsset: deserializeImageSelection(row.portraitAsset),
     }));
@@ -419,6 +435,9 @@ export function buildRowFromForm(form: FormState): FilmRowState {
   if (!form.publicationStart) {
     throw new Error("PublicationStart måste anges.");
   }
+  if (!form.filmCategory.trim()) {
+    throw new Error("Filmkategori måste anges.");
+  }
   for (const rawDate of [form.publicationStart, form.publicationEnd]) {
     if (!rawDate) {
       continue;
@@ -442,6 +461,7 @@ export function buildRowFromForm(form: FormState): FilmRowState {
     PublicationEnd: form.publicationEnd,
     IsFree: form.isFree,
     Territory: form.territory,
+    FilmCategory: form.filmCategory.trim(),
     Genres: [...form.genres],
     Description: form.description.trim(),
     Collections: [...form.collections],
@@ -463,6 +483,7 @@ export function rowToForm(row: FilmRowState): FormState {
     publicationEnd: row.PublicationEnd,
     isFree: row.IsFree,
     territory: row.Territory,
+    filmCategory: row.FilmCategory,
     genres: [...row.Genres],
     description: row.Description,
     collections: [...row.Collections],
@@ -480,6 +501,7 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     PublicationEnd: row.PublicationEnd,
     IsFree: row.IsFree,
     Territory: row.Territory,
+    FilmCategory: row.FilmCategory,
     Genres: row.Genres,
     Description: row.Description,
     Collections: row.Collections,

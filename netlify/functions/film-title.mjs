@@ -1,6 +1,6 @@
 import { fetchFilmApiTitle } from "../../src/lib/filmApi.js";
 
-const API_BASE_URL = process.env.SFI_FILM_API_BASE_URL || "http://cineapi.svenskfilmdatabas.se/filmapi";
+const API_BASE_URL = process.env.SFI_FILM_API_BASE_URL || "https://cineapi.svenskfilmdatabas.se/filmapi";
 const USERNAME = process.env.SFI_FILM_API_USERNAME;
 const PASSWORD = process.env.SFI_FILM_API_PASSWORD;
 
