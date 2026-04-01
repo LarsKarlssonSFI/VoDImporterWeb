@@ -4,7 +4,7 @@ import { fetchFilmApiTitle } from "./src/lib/filmApi.js";
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const apiBaseUrl = env.SFI_FILM_API_BASE_URL || "https://cineapi.svenskfilmdatabas.se/filmapi";
+  const apiBaseUrl = env.SFI_FILM_API_BASE_URL;
   const username = env.SFI_FILM_API_USERNAME;
   const password = env.SFI_FILM_API_PASSWORD;
 
@@ -26,9 +26,9 @@ export default defineConfig(({ mode }) => {
               return;
             }
 
-            if (!username || !password) {
+            if (!apiBaseUrl || !username || !password) {
               res.statusCode = 500;
-              res.end(JSON.stringify({ error: "API-credentials saknas i .env.local." }));
+              res.end(JSON.stringify({ error: "Film-API saknar konfiguration i .env.local." }));
               return;
             }
 

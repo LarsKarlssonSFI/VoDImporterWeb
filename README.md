@@ -18,9 +18,9 @@ Webbversion av `CinePlayImporter`, byggd för `Vite + React + TypeScript`.
 För lokal testning av titelhämtning behöver du skapa en `.env.local` med:
 
 ```bash
-SFI_FILM_API_BASE_URL=https://cineapi.svenskfilmdatabas.se/filmapi
-SFI_FILM_API_USERNAME=...
-SFI_FILM_API_PASSWORD=...
+SFI_FILM_API_BASE_URL=<din-api-bas-url>
+SFI_FILM_API_USERNAME=<ditt-användarnamn>
+SFI_FILM_API_PASSWORD=<ditt-lösenord>
 ```
 
 När Node.js är installerat:

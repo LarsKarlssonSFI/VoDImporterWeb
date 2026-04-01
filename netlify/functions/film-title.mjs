@@ -1,6 +1,6 @@
 import { fetchFilmApiTitle } from "../../src/lib/filmApi.js";
 
-const API_BASE_URL = process.env.SFI_FILM_API_BASE_URL || "https://cineapi.svenskfilmdatabas.se/filmapi";
+const API_BASE_URL = process.env.SFI_FILM_API_BASE_URL;
 const USERNAME = process.env.SFI_FILM_API_USERNAME;
 const PASSWORD = process.env.SFI_FILM_API_PASSWORD;
 
@@ -15,8 +15,8 @@ export default async (request) => {
     });
   }
 
-  if (!USERNAME || !PASSWORD) {
-    return new Response(JSON.stringify({ error: "API-credentials saknas i servermiljön." }), {
+  if (!API_BASE_URL || !USERNAME || !PASSWORD) {
+    return new Response(JSON.stringify({ error: "Film-API saknar konfiguration i servermiljön." }), {
       status: 500,
       headers: { "content-type": "application/json" },
     });
