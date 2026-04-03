@@ -9,8 +9,8 @@ export const DEFAULT_GENRE_OPTIONS = [
   "Komedi",
   "Kortfilm",
   "Romantik",
-  "Skrack",
-  "Spanning",
+  "Skräck",
+  "Spänning",
   "Thriller",
   "Ungdomsfilm",
 ];
