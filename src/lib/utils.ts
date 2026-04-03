@@ -450,9 +450,6 @@ export function buildRowFromForm(form: FormState): FilmRowState {
       throw new Error(`Ogiltigt datumformat: ${rawDate}. Använd YYYY-MM-DD.`);
     }
   }
-  if (form.genres.length === 0) {
-    throw new Error("Minst en genre måste väljas.");
-  }
   if (form.collections.length === 0) {
     throw new Error("Minst en collection måste väljas.");
   }

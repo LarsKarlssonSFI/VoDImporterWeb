@@ -61,11 +61,6 @@ export const TABLE_COLUMNS: TableColumn[] = [
     value: (row) => row.PublicationEnd,
   },
   {
-    key: "isFree",
-    label: "Gratis",
-    value: (row) => (row.IsFree ? "✔" : ""),
-  },
-  {
     key: "labels",
     label: "Labels",
     value: (row) => row.Labels.join(";"),
@@ -79,6 +74,11 @@ export const TABLE_COLUMNS: TableColumn[] = [
     key: "collections",
     label: "Collections",
     value: (row) => row.Collections.join(";"),
+  },
+  {
+    key: "isFree",
+    label: "Gratis",
+    value: (row) => (row.IsFree ? "✔" : ""),
   },
   {
     key: "landscapeImage",
