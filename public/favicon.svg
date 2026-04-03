@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <defs>
+    <style>
+      .cls-1 {
+        fill: #f0ebd7;
+      }
+
+      .cls-2 {
+        isolation: isolate;
+      }
+
+      .cls-3 {
+        mix-blend-mode: multiply;
+      }
+
+      .cls-4 {
+        fill: #0e0e0e;
+      }
+    </style>
+  </defs>
+  <g class="cls-2">
+    <g id="Lager_1">
+      <rect class="cls-1" x="0" width="32" height="32"/>
+      <g class="cls-3">
+        <path class="cls-4" d="M15.95,8.72c-8.02,0-13.6,7.3-13.6,7.3,0,0,5.63,7.27,13.64,7.27s13.64-7.27,13.64-7.27c0,0-5.67-7.3-13.69-7.3ZM16,22.47c-3.57,0-6.47-2.9-6.47-6.47s2.9-6.47,6.47-6.47,6.47,2.9,6.47,6.47-2.9,6.47-6.47,6.47Z"/>
+      </g>
+    </g>
+  </g>
+</svg>

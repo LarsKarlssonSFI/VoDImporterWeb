@@ -407,10 +407,12 @@ export default function App() {
         <header className="hero">
           <div className="hero__copy">
             <div className="hero__topline">
-              <div>
-                <h1>Importera metadata och exportera ett färdigt paket.</h1>
+              <img className="hero__logo" src="/favicon-32.svg" alt="VoD Importer" width="32" height="32" />
+              <div className="hero__heading">
+                <h1>VoD Importer</h1>
               </div>
             </div>
+            <p className="hero__subtitle">Importera metadata och exportera ett färdigt paket.</p>
             <p className="hero__text">
               Lägg till eller redigera rader, kontrollera hur bilderna kommer att beskäras och exportera sedan JSON och bilder i ett enda ZIP-paket.
             </p>
