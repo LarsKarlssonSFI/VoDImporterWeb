@@ -1,12 +1,13 @@
-import { Download, Film, LayoutPanelTop, Plus, Rows3, Settings2, Trash2 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { Download, Film, LayoutPanelTop, Plus, Rows3, Settings2, Trash2, Upload } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { ChangeEvent } from "react";
 import { ImageField } from "./components/ImageField";
 import { OptionEditor } from "./components/OptionEditor";
 import { PreviewDialog } from "./components/PreviewDialog";
 import {
   createEmptyForm,
   DEFAULT_COLLECTION_OPTIONS,
-  DEFAULT_FILM_CATEGORY_OPTIONS,
+  DEFAULT_LABEL_OPTIONS,
   DEFAULT_GENRE_OPTIONS,
   DEFAULT_TERRITORY_OPTIONS,
   EXPORT_BASENAME,
@@ -21,6 +22,7 @@ import {
   loadStoredOptions,
   revokeImageSelection,
   rowToForm,
+  importRowsFromWorkbook,
   saveStoredRows,
   saveStoredOptions,
   triggerDownload,
@@ -32,7 +34,7 @@ export default function App() {
   const storedOptions = useMemo(
     () =>
       loadStoredOptions(
-        DEFAULT_FILM_CATEGORY_OPTIONS,
+        DEFAULT_LABEL_OPTIONS,
         DEFAULT_GENRE_OPTIONS,
         DEFAULT_COLLECTION_OPTIONS,
         DEFAULT_TERRITORY_OPTIONS,
@@ -41,7 +43,7 @@ export default function App() {
   );
 
   const [activeTab, setActiveTab] = useState<TabKey>("importer");
-  const [filmCategoryOptions, setFilmCategoryOptions] = useState<string[]>(storedOptions.filmCategories);
+  const [labelOptions, setLabelOptions] = useState<string[]>(storedOptions.labels);
   const [genreOptions, setGenreOptions] = useState<string[]>(storedOptions.genres);
   const [collectionOptions, setCollectionOptions] = useState<string[]>(storedOptions.collections);
   const [territoryOptions, setTerritoryOptions] = useState<string[]>(storedOptions.territories);
@@ -54,21 +56,22 @@ export default function App() {
   const [isExporting, setIsExporting] = useState(false);
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
+  const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    saveStoredOptions(filmCategoryOptions, genreOptions, collectionOptions, territoryOptions);
-  }, [collectionOptions, filmCategoryOptions, genreOptions, territoryOptions]);
+    saveStoredOptions(labelOptions, genreOptions, collectionOptions, territoryOptions);
+  }, [collectionOptions, genreOptions, labelOptions, territoryOptions]);
 
   useEffect(() => {
-    if (filmCategoryOptions.includes(form.filmCategory)) {
+    if (form.labels.every((label) => labelOptions.includes(label))) {
       return;
     }
 
     setForm((current) => ({
       ...current,
-      filmCategory: filmCategoryOptions[0] ?? "",
+      labels: current.labels.filter((label) => labelOptions.includes(label)),
     }));
-  }, [filmCategoryOptions, form.filmCategory]);
+  }, [form.labels, labelOptions]);
 
   useEffect(() => {
     if (territoryOptions.includes(form.territory)) {
@@ -266,6 +269,85 @@ export default function App() {
     }
   }
 
+  async function importWorkbook(file: File) {
+    try {
+      const importedRows = await importRowsFromWorkbook(file);
+      if (importedRows.length === 0) {
+        setError("Hittade inga importerbara rader i Excel-filen.");
+        return;
+      }
+
+      let createdCount = 0;
+      let updatedCount = 0;
+
+      setRows((current) => {
+        const nextRows = [...current];
+
+        importedRows.forEach((imported) => {
+          const existingIndex = nextRows.findIndex((row) => row.FilmID === imported.filmId);
+
+          if (existingIndex >= 0) {
+            const existing = nextRows[existingIndex];
+            nextRows[existingIndex] = {
+              ...existing,
+              Title: imported.title ?? existing.Title,
+              PublicationStart: imported.publicationStart ?? existing.PublicationStart,
+              PublicationEnd: imported.publicationEnd ?? existing.PublicationEnd,
+              IsFree: imported.isFree ?? existing.IsFree,
+              Territory: "Sverige",
+              Labels: imported.labels ?? existing.Labels,
+              Genres: imported.genres ?? existing.Genres,
+              Description: imported.description ?? existing.Description,
+              Collections: imported.collections ?? existing.Collections,
+            };
+            updatedCount += 1;
+            return;
+          }
+
+          nextRows.push({
+            id: crypto.randomUUID(),
+            FilmID: imported.filmId,
+            Title: imported.title ?? "",
+            PublicationStart: imported.publicationStart ?? "",
+            PublicationEnd: imported.publicationEnd ?? "",
+            IsFree: imported.isFree ?? false,
+            Territory: "Sverige",
+            Labels: imported.labels ?? [],
+            Genres: imported.genres ?? [],
+            Description: imported.description ?? "",
+            Collections: imported.collections ?? [],
+            ConnectedFilmIDs: [],
+            ConnectedCollections: [],
+            LandscapeImage: "",
+            PortraitImage: "",
+            landscapeAsset: null,
+            portraitAsset: null,
+          });
+          createdCount += 1;
+        });
+
+        return nextRows;
+      });
+
+      setSelectedRowId(null);
+      setError("");
+      setStatus(
+        `Excel importerad: ${importedRows.length} rader lästa, ${createdCount} nya och ${updatedCount} uppdaterade.`,
+      );
+    } catch (nextError) {
+      setError(nextError instanceof Error ? nextError.message : "Kunde inte importera Excel-filen.");
+    }
+  }
+
+  async function handleWorkbookSelected(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) {
+      return;
+    }
+    await importWorkbook(file);
+  }
+
   function updateGenres(nextGenres: string[]) {
     const cleaned = cleanOptionList(nextGenres, DEFAULT_GENRE_OPTIONS);
     setGenreOptions(cleaned);
@@ -275,12 +357,12 @@ export default function App() {
     }));
   }
 
-  function updateFilmCategories(nextFilmCategories: string[]) {
-    const cleaned = cleanOptionList(nextFilmCategories, DEFAULT_FILM_CATEGORY_OPTIONS);
-    setFilmCategoryOptions(cleaned);
+  function updateLabels(nextLabels: string[]) {
+    const cleaned = cleanOptionList(nextLabels, DEFAULT_LABEL_OPTIONS);
+    setLabelOptions(cleaned);
     setForm((current) => ({
       ...current,
-      filmCategory: cleaned.includes(current.filmCategory) ? current.filmCategory : cleaned[0],
+      labels: current.labels.filter((label) => cleaned.includes(label)),
     }));
   }
 
@@ -327,8 +409,8 @@ export default function App() {
               <strong>{genreOptions.length}</strong>
             </div>
             <div className="stat-card">
-              <span>Kategorier</span>
-              <strong>{filmCategoryOptions.length}</strong>
+              <span>Labels</span>
+              <strong>{labelOptions.length}</strong>
             </div>
           </div>
         </header>
@@ -474,18 +556,25 @@ export default function App() {
                 </fieldset>
 
                 <fieldset className="field fieldset">
-                  <legend>Filmkategori</legend>
+                  <legend>Labels</legend>
                   <div className="chip-grid">
-                    {filmCategoryOptions.map((filmCategory) => {
-                      const selected = form.filmCategory === filmCategory;
+                    {labelOptions.map((label) => {
+                      const selected = form.labels.includes(label);
                       return (
                         <button
-                          key={filmCategory}
+                          key={label}
                           type="button"
                           className={selected ? "chip chip--selected" : "chip"}
-                          onClick={() => updateForm("filmCategory", filmCategory)}
+                          onClick={() =>
+                            updateForm(
+                              "labels",
+                              selected
+                                ? form.labels.filter((value) => value !== label)
+                                : [...form.labels, label],
+                            )
+                          }
                         >
-                          {filmCategory}
+                          {label}
                         </button>
                       );
                     })}
@@ -520,12 +609,27 @@ export default function App() {
               </div>
 
               <div className="button-row">
+                <input
+                  ref={importInputRef}
+                  type="file"
+                  accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+                  style={{ display: "none" }}
+                  onChange={handleWorkbookSelected}
+                />
                 <button className="ghost-button" type="button" onClick={resetForm}>
                   Ny rad
                 </button>
                 <button className="primary-button" type="button" onClick={saveRow}>
                   <Plus size={16} />
                   Lägg till / Uppdatera
+                </button>
+                <button
+                  className="secondary-button"
+                  type="button"
+                  onClick={() => importInputRef.current?.click()}
+                >
+                  <Upload size={16} />
+                  Importera Excel
                 </button>
                 <button
                   className="secondary-button"
@@ -592,7 +696,7 @@ export default function App() {
           </main>
         ) : (
           <main className="settings-grid">
-            <OptionEditor title="Filmkategorier" values={filmCategoryOptions} onChange={updateFilmCategories} />
+            <OptionEditor title="Labels" values={labelOptions} onChange={updateLabels} />
             <OptionEditor title="Genres" values={genreOptions} onChange={updateGenres} />
             <OptionEditor title="Collections" values={collectionOptions} onChange={updateCollections} />
             <OptionEditor title="Territorier" values={territoryOptions} onChange={updateTerritories} />

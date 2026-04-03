@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import * as XLSX from "xlsx";
 import {
   EXPORT_BASENAME,
   LANDSCAPE_ASPECT_RATIO,
@@ -13,12 +14,13 @@ import type {
   FormState,
   ImageKind,
   ImageSelection,
+  WorkbookImportRow,
 } from "./types";
 
 const imageLoadCache = new WeakMap<File, Promise<HTMLImageElement>>();
 
 type StoredOptions = {
-  filmCategories?: string[];
+  labels?: string[];
   genres?: string[];
   collections?: string[];
   territories?: string[];
@@ -72,7 +74,7 @@ export function cleanOptionList(values: string[], fallback: string[]): string[] 
 }
 
 export function loadStoredOptions(
-  defaultFilmCategories: string[],
+  defaultLabels: string[],
   defaultGenres: string[],
   defaultCollections: string[],
   defaultTerritories: string[],
@@ -81,7 +83,7 @@ export function loadStoredOptions(
     const raw = window.localStorage.getItem(OPTIONS_STORAGE_KEY);
     if (!raw) {
       return {
-        filmCategories: defaultFilmCategories,
+        labels: defaultLabels,
         genres: defaultGenres,
         collections: defaultCollections,
         territories: defaultTerritories,
@@ -90,14 +92,14 @@ export function loadStoredOptions(
 
     const parsed = JSON.parse(raw) as StoredOptions;
     return {
-      filmCategories: cleanOptionList(parsed.filmCategories ?? defaultFilmCategories, defaultFilmCategories),
+      labels: cleanOptionList(parsed.labels ?? defaultLabels, defaultLabels),
       genres: cleanOptionList(parsed.genres ?? defaultGenres, defaultGenres),
       collections: cleanOptionList(parsed.collections ?? defaultCollections, defaultCollections),
       territories: cleanOptionList(parsed.territories ?? defaultTerritories, defaultTerritories),
     };
   } catch {
     return {
-      filmCategories: defaultFilmCategories,
+      labels: defaultLabels,
       genres: defaultGenres,
       collections: defaultCollections,
       territories: defaultTerritories,
@@ -106,7 +108,7 @@ export function loadStoredOptions(
 }
 
 export function saveStoredOptions(
-  filmCategories: string[],
+  labels: string[],
   genres: string[],
   collections: string[],
   territories: string[],
@@ -114,7 +116,7 @@ export function saveStoredOptions(
   window.localStorage.setItem(
     OPTIONS_STORAGE_KEY,
     JSON.stringify({
-      filmCategories,
+      labels,
       genres,
       collections,
       territories,
@@ -198,7 +200,12 @@ export function loadStoredRows(): FilmRowState[] {
     return parsed.map((row) => ({
       ...row,
       Title: typeof row.Title === "string" ? row.Title : "",
-      FilmCategory: typeof row.FilmCategory === "string" ? row.FilmCategory : "",
+      Labels: Array.isArray((row as StoredRow & { Labels?: unknown }).Labels)
+        ? (row as StoredRow & { Labels?: unknown[] }).Labels?.filter((value): value is string => typeof value === "string") ?? []
+        : typeof (row as StoredRow & { Labels?: unknown }).Labels === "string" &&
+            (row as StoredRow & { Labels?: string }).Labels?.trim()
+          ? [(row as StoredRow & { Labels?: string }).Labels!.trim()]
+          : [],
       landscapeAsset: deserializeImageSelection(row.landscapeAsset),
       portraitAsset: deserializeImageSelection(row.portraitAsset),
     }));
@@ -435,9 +442,6 @@ export function buildRowFromForm(form: FormState): FilmRowState {
   if (!form.publicationStart) {
     throw new Error("PublicationStart måste anges.");
   }
-  if (!form.filmCategory.trim()) {
-    throw new Error("Filmkategori måste anges.");
-  }
   for (const rawDate of [form.publicationStart, form.publicationEnd]) {
     if (!rawDate) {
       continue;
@@ -461,7 +465,7 @@ export function buildRowFromForm(form: FormState): FilmRowState {
     PublicationEnd: form.publicationEnd,
     IsFree: form.isFree,
     Territory: form.territory,
-    FilmCategory: form.filmCategory.trim(),
+    Labels: [...form.labels],
     Genres: [...form.genres],
     Description: form.description.trim(),
     Collections: [...form.collections],
@@ -483,7 +487,7 @@ export function rowToForm(row: FilmRowState): FormState {
     publicationEnd: row.PublicationEnd,
     isFree: row.IsFree,
     territory: row.Territory,
-    filmCategory: row.FilmCategory,
+    labels: [...row.Labels],
     genres: [...row.Genres],
     description: row.Description,
     collections: [...row.Collections],
@@ -501,7 +505,7 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     PublicationEnd: row.PublicationEnd,
     IsFree: row.IsFree,
     Territory: row.Territory,
-    FilmCategory: row.FilmCategory,
+    Labels: [...row.Labels],
     Genres: row.Genres,
     Description: row.Description,
     Collections: row.Collections,
@@ -547,4 +551,192 @@ export function triggerDownload(blob: Blob, filename: string) {
   link.click();
   link.remove();
   URL.revokeObjectURL(url);
+}
+
+function normalizeHeaderName(value: unknown) {
+  return String(value ?? "")
+    .trim()
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]/g, "");
+}
+
+function splitImportedList(value: unknown) {
+  return String(value ?? "")
+    .split(/[;,]/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseImportedBoolean(value: unknown) {
+  const normalized = String(value ?? "").trim().toLowerCase();
+  if (!normalized) {
+    return undefined;
+  }
+  if (["1", "true", "ja", "yes", "y", "x"].includes(normalized)) {
+    return true;
+  }
+  if (["0", "false", "nej", "no", "n"].includes(normalized)) {
+    return false;
+  }
+  return undefined;
+}
+
+function formatDateParts(year: number, month: number, day: number) {
+  return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function parseImportedDate(value: unknown) {
+  if (!value) {
+    return "";
+  }
+  if (value instanceof Date && !Number.isNaN(value.getTime())) {
+    return formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate());
+  }
+  if (typeof value === "number") {
+    const parsed = XLSX.SSF.parse_date_code(value);
+    if (parsed) {
+      return formatDateParts(parsed.y, parsed.m, parsed.d);
+    }
+  }
+
+  const raw = String(value).trim();
+  if (!raw) {
+    return "";
+  }
+  const isoPrefixMatch = raw.match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (isoPrefixMatch) {
+    return `${isoPrefixMatch[1]}-${isoPrefixMatch[2]}-${isoPrefixMatch[3]}`;
+  }
+  const slashMatch = raw.match(/^(\d{4})\/(\d{2})\/(\d{2})/);
+  if (slashMatch) {
+    return `${slashMatch[1]}-${slashMatch[2]}-${slashMatch[3]}`;
+  }
+
+  const parsed = new Date(raw);
+  if (!Number.isNaN(parsed.getTime())) {
+    return formatDateParts(parsed.getFullYear(), parsed.getMonth() + 1, parsed.getDate());
+  }
+  return "";
+}
+
+const WORKBOOK_HEADER_ALIASES = {
+  filmId: ["filmid"],
+  title: ["titel"],
+  publicationStart: ["publiceringsdatum", "startpublicering"],
+  publicationEnd: ["slutavtalsdatum", "avpublicering"],
+  publicationStatus: ["publiceringsstatus", "status"],
+  labels: ["labels"],
+  collections: ["collection", "collections"],
+  isFree: ["gratis"],
+  genres: ["genres"],
+  description: ["beskrivning"],
+} satisfies Record<string, string[]>;
+
+type WorkbookColumnKey = keyof typeof WORKBOOK_HEADER_ALIASES;
+
+function findWorkbookHeaderRow(rows: unknown[][]) {
+  const relevantKeys: WorkbookColumnKey[] = [
+    "publicationStart",
+    "publicationEnd",
+    "collections",
+    "isFree",
+    "genres",
+    "description",
+  ];
+
+  for (let rowIndex = 0; rowIndex < Math.min(rows.length, 12); rowIndex += 1) {
+    const row = rows[rowIndex] ?? [];
+    const mapping = new Map<WorkbookColumnKey, number>();
+
+    row.forEach((cell, columnIndex) => {
+      const normalized = normalizeHeaderName(cell);
+      if (!normalized) {
+        return;
+      }
+      (Object.entries(WORKBOOK_HEADER_ALIASES) as [WorkbookColumnKey, string[]][]).forEach(([key, aliases]) => {
+        if (!mapping.has(key) && aliases.includes(normalized)) {
+          mapping.set(key, columnIndex);
+        }
+      });
+    });
+
+    const hasFilmId = mapping.has("filmId");
+    const relevantCount = relevantKeys.filter((key) => mapping.has(key)).length;
+    if (hasFilmId && relevantCount > 0) {
+      return { rowIndex, mapping };
+    }
+  }
+
+  return null;
+}
+
+function getCell(row: unknown[], index: number | undefined) {
+  if (index === undefined) {
+    return "";
+  }
+  return row[index];
+}
+
+export async function importRowsFromWorkbook(file: File): Promise<WorkbookImportRow[]> {
+  const buffer = await file.arrayBuffer();
+  const workbook = XLSX.read(buffer, { type: "array", cellDates: true });
+  const importedRows = new Map<number, WorkbookImportRow>();
+
+  workbook.SheetNames.forEach((sheetName) => {
+    const sheet = workbook.Sheets[sheetName];
+    if (!sheet) {
+      return;
+    }
+
+    const rows = XLSX.utils.sheet_to_json(sheet, { header: 1, raw: true, defval: "" }) as unknown[][];
+    const headerInfo = findWorkbookHeaderRow(rows);
+    if (!headerInfo) {
+      return;
+    }
+
+    const { rowIndex, mapping } = headerInfo;
+    for (let index = rowIndex + 1; index < rows.length; index += 1) {
+      const row = rows[index] ?? [];
+      const filmIdValue = String(getCell(row, mapping.get("filmId")) ?? "").trim();
+      if (!filmIdValue) {
+        continue;
+      }
+
+      const filmId = Number(filmIdValue);
+      if (!Number.isInteger(filmId)) {
+        continue;
+      }
+
+      const publicationStatus = String(getCell(row, mapping.get("publicationStatus")) ?? "").trim();
+      if (normalizeHeaderName(publicationStatus) !== "redo") {
+        continue;
+      }
+
+      const title = String(getCell(row, mapping.get("title")) ?? "").trim();
+      const publicationStart = parseImportedDate(getCell(row, mapping.get("publicationStart")));
+      const publicationEnd = parseImportedDate(getCell(row, mapping.get("publicationEnd")));
+      const labels = splitImportedList(getCell(row, mapping.get("labels")));
+      const collections = splitImportedList(getCell(row, mapping.get("collections")));
+      const genres = splitImportedList(getCell(row, mapping.get("genres")));
+      const description = String(getCell(row, mapping.get("description")) ?? "").trim();
+      const isFree = parseImportedBoolean(getCell(row, mapping.get("isFree")));
+
+      importedRows.set(filmId, {
+        filmId,
+        title: title || undefined,
+        publicationStart: publicationStart || undefined,
+        publicationEnd: publicationEnd || undefined,
+        isFree,
+        territory: "Sverige",
+        labels: labels.length > 0 ? labels : undefined,
+        genres: genres.length > 0 ? genres : undefined,
+        description: description || undefined,
+        collections: collections.length > 0 ? collections : undefined,
+      });
+    }
+  });
+
+  return [...importedRows.values()];
 }

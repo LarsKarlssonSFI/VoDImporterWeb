@@ -17,7 +17,7 @@ export type ExportRow = {
   PublicationEnd: string;
   IsFree: boolean;
   Territory: string;
-  FilmCategory: string;
+  Labels: string[];
   Genres: string[];
   Description: string;
   Collections: string[];
@@ -47,7 +47,7 @@ export type FormState = {
   publicationEnd: string;
   isFree: boolean;
   territory: string;
-  filmCategory: string;
+  labels: string[];
   genres: string[];
   description: string;
   collections: string[];
@@ -62,3 +62,16 @@ export type CropPreviewState = {
   imageKind: ImageKind;
   title: string;
 } | null;
+
+export type WorkbookImportRow = {
+  filmId: number;
+  title?: string;
+  publicationStart?: string;
+  publicationEnd?: string;
+  isFree?: boolean;
+  territory: string;
+  labels?: string[];
+  genres?: string[];
+  description?: string;
+  collections?: string[];
+};
