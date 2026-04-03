@@ -120,7 +120,7 @@ input:not([type]) {
 
 .hero__topline {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 16px;
 }
 
@@ -128,7 +128,6 @@ input:not([type]) {
   flex: 0 0 auto;
   width: 52px;
   height: 52px;
-  margin-top: 4px;
   border-radius: 12px;
 }
 
