@@ -13,6 +13,28 @@ export type CropSettings = {
 
 export type ExportRow = {
   FilmID: number;
+  kind: "movie";
+  type: "vod";
+  PublicationStart: string;
+  PublicationEnd: string;
+  IsFree: boolean;
+  Territory: string;
+  Labels: string[];
+  Genres: string[];
+  Description: string;
+  Collections: string[];
+  LandscapeImage: string;
+  PortraitImage: string;
+};
+
+export type ImageSelection = {
+  file: File;
+  sourceUrl: string;
+  crop: CropSettings;
+};
+
+export type FilmRowState = {
+  FilmID: number;
   PublicationStart: string;
   PublicationEnd: string;
   IsFree: boolean;
@@ -25,15 +47,6 @@ export type ExportRow = {
   ConnectedCollections: string[];
   LandscapeImage: string;
   PortraitImage: string;
-};
-
-export type ImageSelection = {
-  file: File;
-  sourceUrl: string;
-  crop: CropSettings;
-};
-
-export type FilmRowState = ExportRow & {
   Title: string;
   id: string;
   landscapeAsset: ImageSelection | null;

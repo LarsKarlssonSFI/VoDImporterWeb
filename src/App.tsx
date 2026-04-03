@@ -177,6 +177,20 @@ export default function App() {
     });
   }
 
+  function clearAllRows() {
+    setRows((current) => {
+      current.forEach((row) => {
+        revokeImageSelection(row.landscapeAsset);
+        revokeImageSelection(row.portraitAsset);
+      });
+      return [];
+    });
+    setSelectedRowId(null);
+    setForm(createEmptyForm());
+    setError("");
+    setStatus("Alla rader rensades.");
+  }
+
   function saveRow() {
     try {
       const built = buildRowFromForm(form);
@@ -257,16 +271,48 @@ export default function App() {
       const response = await fetch(`/api/film-title?filmId=${encodeURIComponent(String(filmId))}`);
       const payload = (await response.json()) as { error?: string; title?: string | null };
       if (!response.ok) {
-        return { filmId, title: null, error: payload.error || "Kunde inte hämta filmtitel." };
+        return {
+          filmId,
+          title: null,
+          error: payload.error || "Kunde inte hämta filmtitel.",
+          status: response.status,
+        };
       }
-      return { filmId, title: payload.title?.trim() || null, error: undefined };
+      return { filmId, title: payload.title?.trim() || null, error: undefined, status: response.status };
     } catch (error) {
       return {
         filmId,
         title: null,
         error: error instanceof Error ? error.message : "Kunde inte hämta filmtitel.",
+        status: 0,
       };
     }
+  }
+
+  async function fetchTitleWithRetry(filmId: number, maxAttempts = 3) {
+    for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
+      const result = await fetchTitleForFilmId(filmId);
+      if (result.title) {
+        return result;
+      }
+
+      const shouldRetry = result.status === 0 || result.status >= 500;
+      if (!shouldRetry || attempt === maxAttempts) {
+        return result;
+      }
+
+      await new Promise((resolve) => window.setTimeout(resolve, 250 * attempt));
+    }
+
+    return { filmId, title: null, error: "Kunde inte hämta filmtitel.", status: 0 };
+  }
+
+  async function fetchImportedTitles(filmIds: number[]) {
+    const results: Awaited<ReturnType<typeof fetchTitleWithRetry>>[] = [];
+    for (const filmId of filmIds) {
+      results.push(await fetchTitleWithRetry(filmId));
+    }
+    return results;
   }
 
   async function importWorkbook(file: File) {
@@ -331,8 +377,11 @@ export default function App() {
 
       setSelectedRowId(null);
       setError("");
+      setStatus(
+        `Excel importerad: ${importedRows.length} rader lästa, ${createdCount} nya och ${updatedCount} uppdaterade. Hämtar titlar från API...`,
+      );
 
-      const titleResults = await Promise.all(importedFilmIds.map((filmId) => fetchTitleForFilmId(filmId)));
+      const titleResults = await fetchImportedTitles(importedFilmIds);
       const titlesByFilmId = new Map(
         titleResults.filter((result) => result.title).map((result) => [result.filmId, result.title as string]),
       );
@@ -635,6 +684,9 @@ export default function App() {
                   style={{ display: "none" }}
                   onChange={handleWorkbookSelected}
                 />
+                <button className="ghost-button" type="button" onClick={clearAllRows}>
+                  Rensa
+                </button>
                 <button className="ghost-button" type="button" onClick={resetForm}>
                   Ny rad
                 </button>

@@ -498,6 +498,8 @@ export function rowToForm(row: FilmRowState): FormState {
 export function exportRowForJson(row: FilmRowState): ExportRow {
   return {
     FilmID: row.FilmID,
+    kind: "movie",
+    type: "vod",
     PublicationStart: row.PublicationStart,
     PublicationEnd: row.PublicationEnd,
     IsFree: row.IsFree,
@@ -506,8 +508,6 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     Genres: row.Genres,
     Description: row.Description,
     Collections: row.Collections,
-    ConnectedFilmIDs: row.ConnectedFilmIDs,
-    ConnectedCollections: row.ConnectedCollections,
     LandscapeImage: row.LandscapeImage ? `${EXPORT_BASENAME}_assets/${row.LandscapeImage}` : "",
     PortraitImage: row.PortraitImage ? `${EXPORT_BASENAME}_assets/${row.PortraitImage}` : "",
   };
