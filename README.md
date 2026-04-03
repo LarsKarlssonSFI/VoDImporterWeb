@@ -1,4 +1,4 @@
-# CinePlay Importer Web
+# VoD Importer
 
 Webbversion av `CinePlayImporter`, byggd för `Vite + React + TypeScript`.
 

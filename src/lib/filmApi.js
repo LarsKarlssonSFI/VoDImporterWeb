@@ -48,30 +48,41 @@ export function parseFilmApiPayload(payload) {
   return unwrapFilmApiPayload(payload);
 }
 
-export function extractFilmTitle(payload) {
-  const parsedPayload = unwrapFilmApiPayload(payload);
-  const recordList = parsedPayload?.adlibJSON?.recordList?.record;
-  const firstRecord = Array.isArray(recordList) ? recordList[0] : null;
-  const titles = Array.isArray(firstRecord?.Title) ? firstRecord.Title : [];
-
+function extractTitleByType(titles, expectedType) {
   for (const titleEntry of titles) {
     if (!isRecord(titleEntry)) {
       continue;
     }
 
     const titleTypes = Array.isArray(titleEntry["title.type"]) ? titleEntry["title.type"] : [];
-    const hasSwedishReleaseTitle = titleTypes.some((titleType) => {
+    const hasExpectedType = titleTypes.some((titleType) => {
       if (!isRecord(titleType)) {
         return false;
       }
-      return getTextFromSpans(titleType.value) === "Svensk premiärtitel";
+      return getTextFromSpans(titleType.value) === expectedType;
     });
 
-    if (!hasSwedishReleaseTitle) {
+    if (!hasExpectedType) {
       continue;
     }
 
     const title = getTextFromSpans(titleEntry.title_complete);
+    if (title) {
+      return title;
+    }
+  }
+
+  return null;
+}
+
+export function extractFilmTitle(payload) {
+  const parsedPayload = unwrapFilmApiPayload(payload);
+  const recordList = parsedPayload?.adlibJSON?.recordList?.record;
+  const firstRecord = Array.isArray(recordList) ? recordList[0] : null;
+  const titles = Array.isArray(firstRecord?.Title) ? firstRecord.Title : [];
+
+  for (const titleType of ["Svensk premiärtitel", "Vod-titel i Sverige", "Alternativtitel"]) {
+    const title = extractTitleByType(titles, titleType);
     if (title) {
       return title;
     }
