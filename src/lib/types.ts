@@ -65,7 +65,6 @@ export type CropPreviewState = {
 
 export type WorkbookImportRow = {
   filmId: number;
-  title?: string;
   publicationStart?: string;
   publicationEnd?: string;
   isFree?: boolean;

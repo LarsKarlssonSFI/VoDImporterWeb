@@ -222,7 +222,7 @@ input:not([type]) {
 .status--error {
   border-color: #f2c2bf;
   background: var(--danger-soft);
-  color: var(--danger);
+  color: #111111;
 }
 
 .layout-grid {
@@ -275,6 +275,10 @@ input:not([type]) {
 .form-grid--secondary {
   margin-top: 14px;
   align-items: start;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.12fr);
+  grid-template-areas:
+    "genres collections description"
+    "labels labels description";
 }
 
 .field {
@@ -344,11 +348,35 @@ input:not([type]) {
   grid-column: span 2;
 }
 
+.fieldset--genres {
+  grid-area: genres;
+}
+
+.fieldset--collections {
+  grid-area: collections;
+}
+
+.fieldset--labels {
+  grid-area: labels;
+}
+
+.field--description {
+  grid-area: description;
+  align-self: stretch;
+  grid-template-rows: auto 1fr;
+}
+
 .fieldset {
   border: 1px solid var(--border);
   border-radius: 14px;
   padding: 12px;
   min-width: 0;
+}
+
+.field--description textarea {
+  min-height: 0;
+  height: 100%;
+  resize: vertical;
 }
 
 .chip-grid,
@@ -772,6 +800,15 @@ input:not([type]) {
 
   .field--span-2 {
     grid-column: auto;
+  }
+
+  .form-grid--secondary {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "genres"
+      "collections"
+      "labels"
+      "description";
   }
 }
 

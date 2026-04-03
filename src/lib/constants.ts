@@ -16,15 +16,20 @@ export const DEFAULT_GENRE_OPTIONS = [
 ];
 
 export const DEFAULT_COLLECTION_OPTIONS = [
-  "Arkiv",
-  "Free",
-  "Klassiker",
-  "Nypremiar",
-  "Restaurerad",
-  "Temasamling",
+  "Jan Troell", 
+  "30 dagar", 
+  "Svenska bilder",
+  "Merchant-Ivory-Jhabvala",
+  "Konrad Wolf",
+  "Roberto Rossellini",
+  "Sverige 80"
 ];
 
-export const DEFAULT_LABEL_OPTIONS: string[] = [];
+export const DEFAULT_LABEL_OPTIONS = [
+  "Spelfilm",
+  "Beställningsfilm",
+  "80-tal"
+];
 
 export const DEFAULT_TERRITORY_OPTIONS = ["Sverige", "Danmark", "Finland", "Norge", "Norden"];
 

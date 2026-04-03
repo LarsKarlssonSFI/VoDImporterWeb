@@ -631,7 +631,7 @@ const WORKBOOK_HEADER_ALIASES = {
   collections: ["collection", "collections"],
   isFree: ["gratis"],
   genres: ["genres"],
-  description: ["beskrivning"],
+  description: ["text"],
 } satisfies Record<string, string[]>;
 
 type WorkbookColumnKey = keyof typeof WORKBOOK_HEADER_ALIASES;
@@ -714,7 +714,6 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
         continue;
       }
 
-      const title = String(getCell(row, mapping.get("title")) ?? "").trim();
       const publicationStart = parseImportedDate(getCell(row, mapping.get("publicationStart")));
       const publicationEnd = parseImportedDate(getCell(row, mapping.get("publicationEnd")));
       const labels = splitImportedList(getCell(row, mapping.get("labels")));
@@ -725,7 +724,6 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
 
       importedRows.set(filmId, {
         filmId,
-        title: title || undefined,
         publicationStart: publicationStart || undefined,
         publicationEnd: publicationEnd || undefined,
         isFree,

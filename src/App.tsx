@@ -19,34 +19,21 @@ import {
   cleanOptionList,
   createExportZip,
   loadStoredRows,
-  loadStoredOptions,
   revokeImageSelection,
   rowToForm,
   importRowsFromWorkbook,
   saveStoredRows,
-  saveStoredOptions,
   triggerDownload,
 } from "./lib/utils";
 
 type TabKey = "importer" | "settings";
 
 export default function App() {
-  const storedOptions = useMemo(
-    () =>
-      loadStoredOptions(
-        DEFAULT_LABEL_OPTIONS,
-        DEFAULT_GENRE_OPTIONS,
-        DEFAULT_COLLECTION_OPTIONS,
-        DEFAULT_TERRITORY_OPTIONS,
-      ),
-    [],
-  );
-
   const [activeTab, setActiveTab] = useState<TabKey>("importer");
-  const [labelOptions, setLabelOptions] = useState<string[]>(storedOptions.labels);
-  const [genreOptions, setGenreOptions] = useState<string[]>(storedOptions.genres);
-  const [collectionOptions, setCollectionOptions] = useState<string[]>(storedOptions.collections);
-  const [territoryOptions, setTerritoryOptions] = useState<string[]>(storedOptions.territories);
+  const [labelOptions, setLabelOptions] = useState<string[]>(() => [...DEFAULT_LABEL_OPTIONS]);
+  const [genreOptions, setGenreOptions] = useState<string[]>(() => [...DEFAULT_GENRE_OPTIONS]);
+  const [collectionOptions, setCollectionOptions] = useState<string[]>(() => [...DEFAULT_COLLECTION_OPTIONS]);
+  const [territoryOptions, setTerritoryOptions] = useState<string[]>(() => [...DEFAULT_TERRITORY_OPTIONS]);
   const [rows, setRows] = useState<FilmRowState[]>([]);
   const [selectedRowId, setSelectedRowId] = useState<string | null>(null);
   const [form, setForm] = useState<FormState>(createEmptyForm());
@@ -57,10 +44,6 @@ export default function App() {
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
-
-  useEffect(() => {
-    saveStoredOptions(labelOptions, genreOptions, collectionOptions, territoryOptions);
-  }, [collectionOptions, genreOptions, labelOptions, territoryOptions]);
 
   useEffect(() => {
     if (form.labels.every((label) => labelOptions.includes(label))) {
@@ -269,6 +252,23 @@ export default function App() {
     }
   }
 
+  async function fetchTitleForFilmId(filmId: number) {
+    try {
+      const response = await fetch(`/api/film-title?filmId=${encodeURIComponent(String(filmId))}`);
+      const payload = (await response.json()) as { error?: string; title?: string | null };
+      if (!response.ok) {
+        return { filmId, title: null, error: payload.error || "Kunde inte hämta filmtitel." };
+      }
+      return { filmId, title: payload.title?.trim() || null, error: undefined };
+    } catch (error) {
+      return {
+        filmId,
+        title: null,
+        error: error instanceof Error ? error.message : "Kunde inte hämta filmtitel.",
+      };
+    }
+  }
+
   async function importWorkbook(file: File) {
     try {
       const importedRows = await importRowsFromWorkbook(file);
@@ -279,6 +279,7 @@ export default function App() {
 
       let createdCount = 0;
       let updatedCount = 0;
+      const importedFilmIds = importedRows.map((row) => row.filmId);
 
       setRows((current) => {
         const nextRows = [...current];
@@ -290,7 +291,6 @@ export default function App() {
             const existing = nextRows[existingIndex];
             nextRows[existingIndex] = {
               ...existing,
-              Title: imported.title ?? existing.Title,
               PublicationStart: imported.publicationStart ?? existing.PublicationStart,
               PublicationEnd: imported.publicationEnd ?? existing.PublicationEnd,
               IsFree: imported.isFree ?? existing.IsFree,
@@ -307,7 +307,7 @@ export default function App() {
           nextRows.push({
             id: crypto.randomUUID(),
             FilmID: imported.filmId,
-            Title: imported.title ?? "",
+            Title: "",
             PublicationStart: imported.publicationStart ?? "",
             PublicationEnd: imported.publicationEnd ?? "",
             IsFree: imported.isFree ?? false,
@@ -331,8 +331,25 @@ export default function App() {
 
       setSelectedRowId(null);
       setError("");
+
+      const titleResults = await Promise.all(importedFilmIds.map((filmId) => fetchTitleForFilmId(filmId)));
+      const titlesByFilmId = new Map(
+        titleResults.filter((result) => result.title).map((result) => [result.filmId, result.title as string]),
+      );
+      const failedTitleCount = titleResults.filter((result) => !result.title).length;
+
+      if (titlesByFilmId.size > 0) {
+        setRows((current) =>
+          current.map((row) =>
+            titlesByFilmId.has(row.FilmID) ? { ...row, Title: titlesByFilmId.get(row.FilmID) || row.Title } : row,
+          ),
+        );
+      }
+
       setStatus(
-        `Excel importerad: ${importedRows.length} rader lästa, ${createdCount} nya och ${updatedCount} uppdaterade.`,
+        `Excel importerad: ${importedRows.length} rader lästa, ${createdCount} nya och ${updatedCount} uppdaterade. ${
+          importedFilmIds.length - failedTitleCount
+        } titlar hämtades från API${failedTitleCount > 0 ? `, ${failedTitleCount} misslyckades.` : "."}`,
       );
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Kunde inte importera Excel-filen.");
@@ -503,7 +520,7 @@ export default function App() {
               </div>
 
               <div className="form-grid form-grid--secondary">
-                <fieldset className="field fieldset">
+                <fieldset className="field fieldset fieldset--genres">
                   <legend>Genres</legend>
                   <div className="chip-grid">
                     {genreOptions.map((genre) => {
@@ -529,7 +546,7 @@ export default function App() {
                   </div>
                 </fieldset>
 
-                <fieldset className="field fieldset">
+                <fieldset className="field fieldset fieldset--collections">
                   <legend>Collections</legend>
                   <div className="chip-grid">
                     {collectionOptions.map((collection) => {
@@ -555,7 +572,7 @@ export default function App() {
                   </div>
                 </fieldset>
 
-                <fieldset className="field fieldset">
+                <fieldset className="field fieldset fieldset--labels">
                   <legend>Labels</legend>
                   <div className="chip-grid">
                     {labelOptions.map((label) => {
@@ -581,7 +598,7 @@ export default function App() {
                   </div>
                 </fieldset>
 
-                <label className="field field--span-2">
+                <label className="field field--description">
                   <span>Textbeskrivning</span>
                   <textarea
                     rows={5}
