@@ -496,6 +496,8 @@ export function rowToForm(row: FilmRowState): FormState {
 }
 
 export function exportRowForJson(row: FilmRowState): ExportRow {
+  const exportCollections = row.Collections.filter((value) => value.trim().toLowerCase() !== "free");
+  const offers = row.IsFree ? ["Free"] : ["Free", "Monthly99", "Yearly999"];
   return {
     FilmID: row.FilmID,
     kind: "movie",
@@ -507,10 +509,31 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     Labels: [...row.Labels],
     Genres: row.Genres,
     Description: row.Description,
-    Collections: row.Collections,
+    Collections: exportCollections,
+    Offers: offers,
     LandscapeImage: row.LandscapeImage ? `${EXPORT_BASENAME}_assets/${row.LandscapeImage}` : "",
     PortraitImage: row.PortraitImage ? `${EXPORT_BASENAME}_assets/${row.PortraitImage}` : "",
   };
+}
+
+function renderScreeningDatEntry(row: FilmRowState) {
+  const tjValue = row.IsFree ? "Cinemateket play (FVOD)" : "Cinemateket play (SVOD)";
+  const lines = [
+    "Et VOD-release",
+    "ET Visning",
+    `TJ ${tjValue}`,
+    `T1 ${row.PublicationStart}`,
+    `T2 ${row.PublicationEnd}`,
+    "RE Sverige",
+    `BI ${row.FilmID}`,
+    "",
+    "**",
+  ];
+  return lines.join("\n");
+}
+
+function createScreeningDat(rows: FilmRowState[]) {
+  return rows.map((row) => renderScreeningDatEntry(row)).join("\n");
 }
 
 export async function createExportZip(rows: FilmRowState[]) {
@@ -536,6 +559,7 @@ export async function createExportZip(rows: FilmRowState[]) {
   }
 
   zip.file(`${EXPORT_BASENAME}.json`, JSON.stringify(payload, null, 2));
+  zip.file("visningar.dat", createScreeningDat(rows));
   return zip.generateAsync({ type: "blob" });
 }
 

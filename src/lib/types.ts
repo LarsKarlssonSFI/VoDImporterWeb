@@ -23,6 +23,7 @@ export type ExportRow = {
   Genres: string[];
   Description: string;
   Collections: string[];
+  Offers: string[];
   LandscapeImage: string;
   PortraitImage: string;
 };
