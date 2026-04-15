@@ -11,21 +11,19 @@ export type CropSettings = {
   paddingBottom: number;
 };
 
+export type ExportImage = {
+  type: "poster" | "sixteen-nine";
+  filename: string;
+};
+
 export type ExportRow = {
-  FilmID: number;
+  labels: string[];
   kind: "movie";
-  type: "vod";
-  PublicationStart: string;
-  PublicationEnd: string;
-  IsFree: boolean;
-  Territory: string;
-  Labels: string[];
-  Genres: string[];
-  Description: string;
-  Collections: string[];
-  Offers: string[];
-  LandscapeImage: string;
-  PortraitImage: string;
+  title: string;
+  genres: string[];
+  images: ExportImage[];
+  synopsis: string;
+  externalReportingId: string;
 };
 
 export type ImageSelection = {

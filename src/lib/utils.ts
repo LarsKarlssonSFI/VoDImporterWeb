@@ -496,23 +496,38 @@ export function rowToForm(row: FilmRowState): FormState {
 }
 
 export function exportRowForJson(row: FilmRowState): ExportRow {
-  const exportCollections = row.Collections.filter((value) => value.trim().toLowerCase() !== "free");
-  const offers = row.IsFree ? ["Free"] : ["Free", "Monthly99", "Yearly999"];
+  const labels = [...row.Labels];
+  labels.push(row.IsFree ? "packid_gratis" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK");
+  for (const collection of row.Collections) {
+    const normalizedCollection = collection.trim();
+    if (!normalizedCollection) {
+      continue;
+    }
+    labels.push(`collection_${normalizedCollection}`);
+  }
+
+  const images: ExportRow["images"] = [];
+  if (row.PortraitImage) {
+    images.push({
+      type: "poster",
+      filename: `${EXPORT_BASENAME}_assets/${row.PortraitImage}`,
+    });
+  }
+  if (row.LandscapeImage) {
+    images.push({
+      type: "sixteen-nine",
+      filename: `${EXPORT_BASENAME}_assets/${row.LandscapeImage}`,
+    });
+  }
+
   return {
-    FilmID: row.FilmID,
+    labels,
     kind: "movie",
-    type: "vod",
-    PublicationStart: row.PublicationStart,
-    PublicationEnd: row.PublicationEnd,
-    IsFree: row.IsFree,
-    Territory: row.Territory,
-    Labels: [...row.Labels],
-    Genres: row.Genres,
-    Description: row.Description,
-    Collections: exportCollections,
-    Offers: offers,
-    LandscapeImage: row.LandscapeImage ? `${EXPORT_BASENAME}_assets/${row.LandscapeImage}` : "",
-    PortraitImage: row.PortraitImage ? `${EXPORT_BASENAME}_assets/${row.PortraitImage}` : "",
+    title: row.Title,
+    genres: [...row.Genres],
+    images,
+    synopsis: row.Description,
+    externalReportingId: String(row.FilmID),
   };
 }
 
@@ -536,7 +551,16 @@ function createScreeningDat(rows: FilmRowState[]) {
   return rows.map((row) => renderScreeningDatEntry(row)).join("\n");
 }
 
-export async function createExportZip(rows: FilmRowState[]) {
+function sanitizeExportFilePart(value: string) {
+  const normalized = value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return normalized || "untitled";
+}
+
+export async function createExportZip(rows: FilmRowState[], separateJsonFiles = false) {
   const zip = new JSZip();
   const assetFolder = zip.folder(`${EXPORT_BASENAME}_assets`);
   if (!assetFolder) {
@@ -558,7 +582,16 @@ export async function createExportZip(rows: FilmRowState[]) {
     }
   }
 
-  zip.file(`${EXPORT_BASENAME}.json`, JSON.stringify(payload, null, 2));
+  if (separateJsonFiles) {
+    for (const row of rows) {
+      const exportRow = exportRowForJson(row);
+      const fileName = `${row.FilmID}_${sanitizeExportFilePart(row.Title)}.json`;
+      zip.file(fileName, JSON.stringify(exportRow, null, 2));
+    }
+  } else {
+    zip.file(`${EXPORT_BASENAME}.json`, JSON.stringify(payload, null, 2));
+  }
+
   zip.file("visningar.dat", createScreeningDat(rows));
   return zip.generateAsync({ type: "blob" });
 }

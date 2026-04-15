@@ -41,6 +41,7 @@ export default function App() {
   const [status, setStatus] = useState<string>("Redo att lägga till första raden.");
   const [error, setError] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
+  const [exportSeparateFiles, setExportSeparateFiles] = useState(false);
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
@@ -255,9 +256,13 @@ export default function App() {
 
     try {
       setIsExporting(true);
-      const blob = await createExportZip(rows);
+      const blob = await createExportZip(rows, exportSeparateFiles);
       triggerDownload(blob, `${EXPORT_BASENAME}.zip`);
-      setStatus("Export klar. ZIP-filen laddades ner.");
+      setStatus(
+        exportSeparateFiles
+          ? "Export klar. ZIP-filen laddades ner med en JSON-fil per film."
+          : "Export klar. ZIP-filen laddades ner.",
+      );
       setError("");
     } catch (nextError) {
       setError(nextError instanceof Error ? nextError.message : "Export misslyckades.");
@@ -702,6 +707,14 @@ export default function App() {
                   <Upload size={16} />
                   Importera Excel
                 </button>
+                <label className="checkbox-field checkbox-field--compact">
+                  <input
+                    type="checkbox"
+                    checked={exportSeparateFiles}
+                    onChange={(event) => setExportSeparateFiles(event.target.checked)}
+                  />
+                  <span>Separata filer</span>
+                </label>
                 <button
                   className="secondary-button"
                   type="button"
