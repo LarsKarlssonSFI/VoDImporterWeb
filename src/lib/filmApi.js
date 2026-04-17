@@ -20,6 +20,11 @@ function getTextFromSpans(value) {
   return text || null;
 }
 
+function isPlaceholderName(value) {
+  const trimmed = value.trim();
+  return trimmed === "" || /^[-–—]+$/.test(trimmed);
+}
+
 function unwrapFilmApiPayload(payload) {
   if (isRecord(payload) && isRecord(payload.adlibJSON)) {
     return payload;
@@ -83,15 +88,17 @@ function getPersonName(nameValue) {
   const forename = getTextFromSpans(Array.isArray(nameValue.forename) ? nameValue.forename[0] : null);
   const surname = getTextFromSpans(Array.isArray(nameValue.surname) ? nameValue.surname[0] : null);
   if (forename && surname) {
-    return `${forename} ${surname}`;
+    const combinedName = `${forename} ${surname}`.trim();
+    return isPlaceholderName(combinedName) ? null : combinedName;
   }
 
   const fullName = getTextFromSpans(Array.isArray(nameValue.name) ? nameValue.name[0] : null);
   if (fullName) {
-    return fullName;
+    return isPlaceholderName(fullName) ? null : fullName;
   }
 
-  return [forename, surname].filter(Boolean).join(" ") || null;
+  const fallbackName = [forename, surname].filter(Boolean).join(" ").trim();
+  return fallbackName && !isPlaceholderName(fallbackName) ? fallbackName : null;
 }
 
 function extractDirectors(payload) {

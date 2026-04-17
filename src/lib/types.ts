@@ -20,8 +20,8 @@ export type ExportRow = {
   labels: string[];
   kind: "movie";
   title: string;
-  customTag1: string;
-  customTag2: string[];
+  customTags1: string[];
+  customTags2: string[];
   cast: string[];
   directors: string[];
   countryWhitelist?: string[];
