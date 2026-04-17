@@ -20,10 +20,19 @@ export type ExportRow = {
   labels: string[];
   kind: "movie";
   title: string;
+  customTag1: string;
+  customTag2: string[];
+  cast: string[];
+  directors: string[];
+  countryWhitelist?: string[];
+  countriesOfOrigin?: string[];
+  productionYear?: number;
   genres: string[];
   images: ExportImage[];
   synopsis: string;
   externalReportingId: string;
+  viewableWindowStart: number;
+  viewableWindowEnd?: number;
 };
 
 export type ImageSelection = {
@@ -47,6 +56,12 @@ export type FilmRowState = {
   LandscapeImage: string;
   PortraitImage: string;
   Title: string;
+  OriginalTitle: string;
+  DialogueLanguages: string[];
+  Cast: string[];
+  Directors: string[];
+  CountryOfOrigin: string;
+  PremiereYear: number | null;
   id: string;
   landscapeAsset: ImageSelection | null;
   portraitAsset: ImageSelection | null;
@@ -55,6 +70,12 @@ export type FilmRowState = {
 export type FormState = {
   filmId: string;
   title: string;
+  originalTitle: string;
+  dialogueLanguages: string[];
+  cast: string[];
+  directors: string[];
+  countryOfOrigin: string;
+  premiereYear: string;
   publicationStart: string;
   publicationEnd: string;
   isFree: boolean;

@@ -200,6 +200,27 @@ export function loadStoredRows(): FilmRowState[] {
     return parsed.map((row) => ({
       ...row,
       Title: typeof row.Title === "string" ? row.Title : "",
+      OriginalTitle: typeof (row as StoredRow & { OriginalTitle?: unknown }).OriginalTitle === "string"
+        ? ((row as StoredRow & { OriginalTitle?: string }).OriginalTitle ?? "")
+        : "",
+      DialogueLanguages: Array.isArray((row as StoredRow & { DialogueLanguages?: unknown }).DialogueLanguages)
+        ? (row as StoredRow & { DialogueLanguages?: unknown[] }).DialogueLanguages?.filter((value): value is string => typeof value === "string") ?? []
+        : [],
+      Cast: Array.isArray((row as StoredRow & { Cast?: unknown }).Cast)
+        ? (row as StoredRow & { Cast?: unknown[] }).Cast?.filter((value): value is string => typeof value === "string") ?? []
+        : [],
+      Directors: Array.isArray((row as StoredRow & { Directors?: unknown }).Directors)
+        ? (row as StoredRow & { Directors?: unknown[] }).Directors?.filter((value): value is string => typeof value === "string") ?? []
+        : [],
+      CountryOfOrigin:
+        typeof (row as StoredRow & { CountryOfOrigin?: unknown }).CountryOfOrigin === "string"
+          ? ((row as StoredRow & { CountryOfOrigin?: string }).CountryOfOrigin ?? "")
+          : "",
+      PremiereYear:
+        typeof (row as StoredRow & { PremiereYear?: unknown }).PremiereYear === "number" &&
+        Number.isInteger((row as StoredRow & { PremiereYear?: number }).PremiereYear)
+          ? (row as StoredRow & { PremiereYear?: number }).PremiereYear ?? null
+          : null,
       Labels: Array.isArray((row as StoredRow & { Labels?: unknown }).Labels)
         ? (row as StoredRow & { Labels?: unknown[] }).Labels?.filter((value): value is string => typeof value === "string") ?? []
         : typeof (row as StoredRow & { Labels?: unknown }).Labels === "string" &&
@@ -442,6 +463,10 @@ export function buildRowFromForm(form: FormState): FilmRowState {
   if (!form.publicationStart) {
     throw new Error("PublicationStart måste anges.");
   }
+  const trimmedPremiereYear = form.premiereYear.trim();
+  if (trimmedPremiereYear && !/^\d{4}$/.test(trimmedPremiereYear)) {
+    throw new Error("Premiärår måste anges som ett fyrsiffrigt årtal.");
+  }
   for (const rawDate of [form.publicationStart, form.publicationEnd]) {
     if (!rawDate) {
       continue;
@@ -450,14 +475,17 @@ export function buildRowFromForm(form: FormState): FilmRowState {
       throw new Error(`Ogiltigt datumformat: ${rawDate}. Använd YYYY-MM-DD.`);
     }
   }
-  if (form.collections.length === 0) {
-    throw new Error("Minst en collection måste väljas.");
-  }
 
   return {
     id: crypto.randomUUID(),
     FilmID: filmId,
     Title: form.title.trim(),
+    OriginalTitle: form.originalTitle.trim(),
+    DialogueLanguages: [...form.dialogueLanguages],
+    Cast: [...form.cast],
+    Directors: [...form.directors],
+    CountryOfOrigin: form.countryOfOrigin.trim(),
+    PremiereYear: trimmedPremiereYear ? Number(trimmedPremiereYear) : null,
     PublicationStart: form.publicationStart,
     PublicationEnd: form.publicationEnd,
     IsFree: form.isFree,
@@ -480,6 +508,12 @@ export function rowToForm(row: FilmRowState): FormState {
   return {
     filmId: String(row.FilmID),
     title: row.Title,
+    originalTitle: row.OriginalTitle,
+    dialogueLanguages: [...row.DialogueLanguages],
+    cast: [...row.Cast],
+    directors: [...row.Directors],
+    countryOfOrigin: row.CountryOfOrigin,
+    premiereYear: row.PremiereYear ? String(row.PremiereYear) : "",
     publicationStart: row.PublicationStart,
     publicationEnd: row.PublicationEnd,
     isFree: row.IsFree,
@@ -495,9 +529,24 @@ export function rowToForm(row: FilmRowState): FormState {
   };
 }
 
+function toUnixTimestamp(rawDate: string, hours: number, minutes: number) {
+  const trimmed = rawDate.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error(`Ogiltigt datumformat för export: ${rawDate}`);
+  }
+
+  const year = Number(match[1]);
+  const monthIndex = Number(match[2]) - 1;
+  const day = Number(match[3]);
+  return Math.floor(new Date(year, monthIndex, day, hours, minutes, 0, 0).getTime() / 1000);
+}
+
 export function exportRowForJson(row: FilmRowState): ExportRow {
   const labels = [...row.Labels];
-  labels.push(row.IsFree ? "packid_gratis" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK");
+  labels.push(
+    row.IsFree ? "packid_DXFEPCKS48FT7A5WGL5GDMGCMPCK" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK",
+  );
   for (const collection of row.Collections) {
     const normalizedCollection = collection.trim();
     if (!normalizedCollection) {
@@ -520,15 +569,38 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     });
   }
 
-  return {
+  const exportRow: ExportRow = {
     labels,
     kind: "movie",
     title: row.Title,
+    customTag1: row.OriginalTitle,
+    customTag2: [...row.DialogueLanguages],
+    cast: [...row.Cast],
+    directors: [...row.Directors],
     genres: [...row.Genres],
     images,
     synopsis: row.Description,
     externalReportingId: String(row.FilmID),
+    viewableWindowStart: toUnixTimestamp(row.PublicationStart, 0, 1),
   };
+
+  if (row.PremiereYear) {
+    exportRow.productionYear = row.PremiereYear;
+  }
+
+  if (row.CountryOfOrigin) {
+    exportRow.countriesOfOrigin = [row.CountryOfOrigin];
+  }
+
+  if (row.Territory === "Sverige") {
+    exportRow.countryWhitelist = ["SE"];
+  }
+
+  if (row.PublicationEnd) {
+    exportRow.viewableWindowEnd = toUnixTimestamp(row.PublicationEnd, 23, 59);
+  }
+
+  return exportRow;
 }
 
 function renderScreeningDatEntry(row: FilmRowState) {
@@ -538,12 +610,15 @@ function renderScreeningDatEntry(row: FilmRowState) {
     "ET Visning",
     `TJ ${tjValue}`,
     `T1 ${row.PublicationStart}`,
-    `T2 ${row.PublicationEnd}`,
     "RE Sverige",
     `BI ${row.FilmID}`,
-    "",
-    "**",
   ];
+
+  if (row.PublicationEnd.trim()) {
+    lines.push(`T2 ${row.PublicationEnd}`);
+  }
+
+  lines.push("", "**");
   return lines.join("\n");
 }
 
@@ -649,6 +724,9 @@ function parseImportedDate(value: unknown) {
     return formatDateParts(value.getFullYear(), value.getMonth() + 1, value.getDate());
   }
   if (typeof value === "number") {
+    if (value <= 0) {
+      return "";
+    }
     const parsed = XLSX.SSF.parse_date_code(value);
     if (parsed) {
       return formatDateParts(parsed.y, parsed.m, parsed.d);

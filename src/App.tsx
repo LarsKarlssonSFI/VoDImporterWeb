@@ -1,4 +1,4 @@
-import { Download, Film, LayoutPanelTop, Plus, Rows3, Settings2, Trash2, Upload } from "lucide-react";
+import { ChevronDown, ChevronRight, Download, Film, LayoutPanelTop, Plus, Rows3, Settings2, Trash2, Upload } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { ImageField } from "./components/ImageField";
@@ -19,6 +19,7 @@ import {
   cleanOptionList,
   createExportZip,
   loadStoredRows,
+  parseSemicolonList,
   revokeImageSelection,
   rowToForm,
   importRowsFromWorkbook,
@@ -44,6 +45,7 @@ export default function App() {
   const [exportSeparateFiles, setExportSeparateFiles] = useState(false);
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
+  const [isImageSectionOpen, setIsImageSectionOpen] = useState(false);
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
@@ -103,13 +105,51 @@ export default function App() {
     const filmId = form.filmId.trim();
     if (filmId.length === 0) {
       setIsLoadingTitle(false);
-      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
+      setForm((current) =>
+        current.title === "" &&
+        current.originalTitle === "" &&
+        current.dialogueLanguages.length === 0 &&
+        current.cast.length === 0 &&
+        current.directors.length === 0 &&
+        current.countryOfOrigin === "" &&
+        current.premiereYear === ""
+          ? current
+          : {
+              ...current,
+              title: "",
+              originalTitle: "",
+              dialogueLanguages: [],
+              cast: [],
+              directors: [],
+              countryOfOrigin: "",
+              premiereYear: "",
+            },
+      );
       return;
     }
 
     if (!/^\d{1,6}$/.test(filmId)) {
       setIsLoadingTitle(false);
-      setForm((current) => (current.title === "" ? current : { ...current, title: "" }));
+      setForm((current) =>
+        current.title === "" &&
+        current.originalTitle === "" &&
+        current.dialogueLanguages.length === 0 &&
+        current.cast.length === 0 &&
+        current.directors.length === 0 &&
+        current.countryOfOrigin === "" &&
+        current.premiereYear === ""
+          ? current
+          : {
+              ...current,
+              title: "",
+              originalTitle: "",
+              dialogueLanguages: [],
+              cast: [],
+              directors: [],
+              countryOfOrigin: "",
+              premiereYear: "",
+            },
+      );
       return;
     }
 
@@ -120,7 +160,16 @@ export default function App() {
         const response = await fetch(`/api/film-title?filmId=${encodeURIComponent(filmId)}`, {
           signal: controller.signal,
         });
-        const payload = (await response.json()) as { error?: string; title?: string | null };
+        const payload = (await response.json()) as {
+          error?: string;
+          title?: string | null;
+          originalTitle?: string | null;
+          dialogueLanguages?: string[];
+          cast?: string[];
+          directors?: string[];
+          countryOfOrigin?: string | null;
+          premiereYear?: number | null;
+        };
 
         if (!response.ok) {
           throw new Error(payload.error || "Kunde inte hämta filmtitel.");
@@ -133,6 +182,17 @@ export default function App() {
           return {
             ...current,
             title: payload.title?.trim() || "",
+            originalTitle: payload.originalTitle?.trim() || "",
+            dialogueLanguages: Array.isArray(payload.dialogueLanguages)
+              ? payload.dialogueLanguages.filter((value) => typeof value === "string")
+              : [],
+            cast: Array.isArray(payload.cast) ? payload.cast.filter((value) => typeof value === "string") : [],
+            directors: Array.isArray(payload.directors) ? payload.directors.filter((value) => typeof value === "string") : [],
+            countryOfOrigin: payload.countryOfOrigin?.trim() || "",
+            premiereYear:
+              typeof payload.premiereYear === "number" && Number.isInteger(payload.premiereYear)
+                ? String(payload.premiereYear)
+                : "",
           };
         });
         setError("");
@@ -140,7 +200,20 @@ export default function App() {
         if (controller.signal.aborted) {
           return;
         }
-        setForm((current) => (current.filmId.trim() === filmId ? { ...current, title: "" } : current));
+        setForm((current) =>
+          current.filmId.trim() === filmId
+            ? {
+                ...current,
+                title: "",
+                originalTitle: "",
+                dialogueLanguages: [],
+                cast: [],
+                directors: [],
+                countryOfOrigin: "",
+                premiereYear: "",
+              }
+            : current,
+        );
         setError(nextError instanceof Error ? nextError.message : "Kunde inte hämta filmtitel.");
       } finally {
         if (!controller.signal.aborted) {
@@ -274,20 +347,55 @@ export default function App() {
   async function fetchTitleForFilmId(filmId: number) {
     try {
       const response = await fetch(`/api/film-title?filmId=${encodeURIComponent(String(filmId))}`);
-      const payload = (await response.json()) as { error?: string; title?: string | null };
+      const payload = (await response.json()) as {
+        error?: string;
+        title?: string | null;
+        originalTitle?: string | null;
+        dialogueLanguages?: string[];
+        cast?: string[];
+        directors?: string[];
+        countryOfOrigin?: string | null;
+        premiereYear?: number | null;
+      };
       if (!response.ok) {
         return {
           filmId,
           title: null,
+          originalTitle: null,
+          dialogueLanguages: [],
+          cast: [],
+          directors: [],
+          countryOfOrigin: null,
+          premiereYear: null,
           error: payload.error || "Kunde inte hämta filmtitel.",
           status: response.status,
         };
       }
-      return { filmId, title: payload.title?.trim() || null, error: undefined, status: response.status };
+      return {
+        filmId,
+        title: payload.title?.trim() || null,
+        originalTitle: payload.originalTitle?.trim() || null,
+        dialogueLanguages: Array.isArray(payload.dialogueLanguages)
+          ? payload.dialogueLanguages.filter((value) => typeof value === "string")
+          : [],
+        cast: Array.isArray(payload.cast) ? payload.cast.filter((value) => typeof value === "string") : [],
+        directors: Array.isArray(payload.directors) ? payload.directors.filter((value) => typeof value === "string") : [],
+        countryOfOrigin: payload.countryOfOrigin?.trim() || null,
+        premiereYear:
+          typeof payload.premiereYear === "number" && Number.isInteger(payload.premiereYear) ? payload.premiereYear : null,
+        error: undefined,
+        status: response.status,
+      };
     } catch (error) {
       return {
         filmId,
         title: null,
+        originalTitle: null,
+        dialogueLanguages: [],
+        cast: [],
+        directors: [],
+        countryOfOrigin: null,
+        premiereYear: null,
         error: error instanceof Error ? error.message : "Kunde inte hämta filmtitel.",
         status: 0,
       };
@@ -297,7 +405,15 @@ export default function App() {
   async function fetchTitleWithRetry(filmId: number, maxAttempts = 3) {
     for (let attempt = 1; attempt <= maxAttempts; attempt += 1) {
       const result = await fetchTitleForFilmId(filmId);
-      if (result.title) {
+      if (
+        result.title ||
+        result.originalTitle ||
+        result.dialogueLanguages.length > 0 ||
+        result.cast.length > 0 ||
+        result.directors.length > 0 ||
+        result.countryOfOrigin !== null ||
+        result.premiereYear !== null
+      ) {
         return result;
       }
 
@@ -309,7 +425,18 @@ export default function App() {
       await new Promise((resolve) => window.setTimeout(resolve, 250 * attempt));
     }
 
-    return { filmId, title: null, error: "Kunde inte hämta filmtitel.", status: 0 };
+    return {
+      filmId,
+      title: null,
+      originalTitle: null,
+      dialogueLanguages: [],
+      cast: [],
+      directors: [],
+      countryOfOrigin: null,
+      premiereYear: null,
+      error: "Kunde inte hämta filmtitel.",
+      status: 0,
+    };
   }
 
   async function fetchImportedTitles(filmIds: number[]) {
@@ -343,7 +470,7 @@ export default function App() {
             nextRows[existingIndex] = {
               ...existing,
               PublicationStart: imported.publicationStart ?? existing.PublicationStart,
-              PublicationEnd: imported.publicationEnd ?? existing.PublicationEnd,
+              PublicationEnd: imported.publicationEnd ?? "",
               IsFree: imported.isFree ?? existing.IsFree,
               Territory: "Sverige",
               Labels: imported.labels ?? existing.Labels,
@@ -359,6 +486,12 @@ export default function App() {
             id: crypto.randomUUID(),
             FilmID: imported.filmId,
             Title: "",
+            OriginalTitle: "",
+            DialogueLanguages: [],
+            Cast: [],
+            Directors: [],
+            CountryOfOrigin: "",
+            PremiereYear: null,
             PublicationStart: imported.publicationStart ?? "",
             PublicationEnd: imported.publicationEnd ?? "",
             IsFree: imported.isFree ?? false,
@@ -388,14 +521,54 @@ export default function App() {
 
       const titleResults = await fetchImportedTitles(importedFilmIds);
       const titlesByFilmId = new Map(
-        titleResults.filter((result) => result.title).map((result) => [result.filmId, result.title as string]),
+        titleResults
+          .filter(
+            (result) =>
+              result.title ||
+              result.originalTitle ||
+              result.cast.length > 0 ||
+              result.directors.length > 0 ||
+              result.premiereYear !== null,
+          )
+          .map((result) => [
+            result.filmId,
+            {
+              title: result.title,
+              originalTitle: result.originalTitle,
+              dialogueLanguages: result.dialogueLanguages,
+              cast: result.cast,
+              directors: result.directors,
+              countryOfOrigin: result.countryOfOrigin,
+              premiereYear: result.premiereYear,
+            },
+          ]),
       );
-      const failedTitleCount = titleResults.filter((result) => !result.title).length;
+      const failedTitleCount = titleResults.filter(
+        (result) =>
+          !result.title &&
+          !result.originalTitle &&
+          result.dialogueLanguages.length === 0 &&
+          result.cast.length === 0 &&
+          result.directors.length === 0 &&
+          result.countryOfOrigin === null &&
+          result.premiereYear === null,
+      ).length;
 
       if (titlesByFilmId.size > 0) {
         setRows((current) =>
           current.map((row) =>
-            titlesByFilmId.has(row.FilmID) ? { ...row, Title: titlesByFilmId.get(row.FilmID) || row.Title } : row,
+            titlesByFilmId.has(row.FilmID)
+              ? {
+                  ...row,
+                  Title: titlesByFilmId.get(row.FilmID)?.title || row.Title,
+                  OriginalTitle: titlesByFilmId.get(row.FilmID)?.originalTitle || row.OriginalTitle,
+                  DialogueLanguages: titlesByFilmId.get(row.FilmID)?.dialogueLanguages || row.DialogueLanguages,
+                  Cast: titlesByFilmId.get(row.FilmID)?.cast || row.Cast,
+                  Directors: titlesByFilmId.get(row.FilmID)?.directors || row.Directors,
+                  CountryOfOrigin: titlesByFilmId.get(row.FilmID)?.countryOfOrigin || row.CountryOfOrigin,
+                  PremiereYear: titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear,
+                }
+              : row,
           ),
         );
       }
@@ -533,13 +706,73 @@ export default function App() {
 
                 <label className="field field--title">
                   <span>Titel</span>
-                  <input readOnly value={isLoadingTitle ? "Hämtar titel..." : form.title || "Filmens titel"} />
+                  <input
+                    value={form.title}
+                    placeholder={isLoadingTitle ? "Hämtar titel..." : "Filmens titel"}
+                    onChange={(event) => updateForm("title", event.target.value)}
+                  />
+                </label>
+
+                <label className="field field--title">
+                  <span>Originaltitel</span>
+                  <input
+                    value={form.originalTitle}
+                    placeholder={isLoadingTitle ? "Hämtar originaltitel..." : ""}
+                    onChange={(event) => updateForm("originalTitle", event.target.value)}
+                  />
+                </label>
+
+                <label className="field field--title">
+                  <span>Dialogspråk</span>
+                  <input
+                    value={form.dialogueLanguages.join("; ")}
+                    placeholder={isLoadingTitle ? "Hämtar dialogspråk..." : ""}
+                    onChange={(event) => updateForm("dialogueLanguages", parseSemicolonList(event.target.value))}
+                  />
+                </label>
+
+                <label className="field field--title">
+                  <span>Skådespelare</span>
+                  <input
+                    value={form.cast.join("; ")}
+                    placeholder={isLoadingTitle ? "Hämtar skådespelare..." : ""}
+                    onChange={(event) => updateForm("cast", parseSemicolonList(event.target.value))}
+                  />
+                </label>
+
+                <label className="field field--title">
+                  <span>Regissörer</span>
+                  <input
+                    value={form.directors.join("; ")}
+                    placeholder={isLoadingTitle ? "Hämtar regissörer..." : ""}
+                    onChange={(event) => updateForm("directors", parseSemicolonList(event.target.value))}
+                  />
+                </label>
+
+                <label className="field field--compact">
+                  <span>Produktionsland</span>
+                  <input
+                    value={form.countryOfOrigin}
+                    placeholder={isLoadingTitle ? "Hämtar produktionsland..." : ""}
+                    onChange={(event) => updateForm("countryOfOrigin", event.target.value)}
+                  />
+                </label>
+
+                <label className="field field--compact">
+                  <span>Premiärår</span>
+                  <input
+                    value={form.premiereYear}
+                    placeholder={isLoadingTitle ? "Hämtar premiärår..." : ""}
+                    onChange={(event) => updateForm("premiereYear", event.target.value)}
+                  />
                 </label>
 
                 <label className="field field--compact">
                   <span>Publiceringsstart</span>
                   <input
                     type="date"
+                    name="publication-start"
+                    autoComplete="off"
                     value={form.publicationStart}
                     onChange={(event) => updateForm("publicationStart", event.target.value)}
                   />
@@ -549,6 +782,8 @@ export default function App() {
                   <span>Avpublicering</span>
                   <input
                     type="date"
+                    name="publication-end"
+                    autoComplete="off"
                     value={form.publicationEnd}
                     onChange={(event) => updateForm("publicationEnd", event.target.value)}
                   />
@@ -664,22 +899,41 @@ export default function App() {
                 </label>
               </div>
 
-              <div className="image-grid">
-                <ImageField
-                  title="Landskapsformat"
-                  imageKind="landscape"
-                  value={form.landscapeAsset}
-                  onChange={(value) => replaceImage("landscapeAsset", value)}
-                  onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
-                />
-                <ImageField
-                  title="Porträttformat"
-                  imageKind="portrait"
-                  value={form.portraitAsset}
-                  onChange={(value) => replaceImage("portraitAsset", value)}
-                  onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
-                />
-              </div>
+              <section className="image-section">
+                <button
+                  className="section-toggle"
+                  type="button"
+                  onClick={() => setIsImageSectionOpen((current) => !current)}
+                  aria-expanded={isImageSectionOpen}
+                >
+                  <span className="section-toggle__label">
+                    {isImageSectionOpen ? <ChevronDown size={16} /> : <ChevronRight size={16} />}
+                    Bildhantering
+                  </span>
+                  <span className="section-toggle__meta">
+                    {form.landscapeAsset || form.portraitAsset ? "Bilder valda" : "Minimerad"}
+                  </span>
+                </button>
+
+                {isImageSectionOpen ? (
+                  <div className="image-grid">
+                    <ImageField
+                      title="Landskapsformat"
+                      imageKind="landscape"
+                      value={form.landscapeAsset}
+                      onChange={(value) => replaceImage("landscapeAsset", value)}
+                      onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
+                    />
+                    <ImageField
+                      title="Porträttformat"
+                      imageKind="portrait"
+                      value={form.portraitAsset}
+                      onChange={(value) => replaceImage("portraitAsset", value)}
+                      onPreview={(selection, imageKind, title) => setPreview({ selection, imageKind, title })}
+                    />
+                  </div>
+                ) : null}
+              </section>
 
               <div className="button-row">
                 <input

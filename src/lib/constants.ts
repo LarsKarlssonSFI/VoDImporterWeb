@@ -51,6 +51,36 @@ export const TABLE_COLUMNS: TableColumn[] = [
     value: (row) => row.Title,
   },
   {
+    key: "originalTitle",
+    label: "Originaltitel",
+    value: (row) => row.OriginalTitle,
+  },
+  {
+    key: "dialogueLanguages",
+    label: "Dialogspråk",
+    value: (row) => row.DialogueLanguages.join("; "),
+  },
+  {
+    key: "cast",
+    label: "Skådespelare",
+    value: (row) => row.Cast.join("; "),
+  },
+  {
+    key: "directors",
+    label: "Regissörer",
+    value: (row) => row.Directors.join("; "),
+  },
+  {
+    key: "countryOfOrigin",
+    label: "Produktionsland",
+    value: (row) => row.CountryOfOrigin,
+  },
+  {
+    key: "premiereYear",
+    label: "Premiärår",
+    value: (row) => (row.PremiereYear ? String(row.PremiereYear) : ""),
+  },
+  {
     key: "publicationStart",
     label: "Start",
     value: (row) => row.PublicationStart,
@@ -111,6 +141,12 @@ export const EXPORT_BASENAME = "cineplay_export";
 export const createEmptyForm = (): FormState => ({
   filmId: "",
   title: "",
+  originalTitle: "",
+  dialogueLanguages: [],
+  cast: [],
+  directors: [],
+  countryOfOrigin: "",
+  premiereYear: "",
   publicationStart: "2026-05-04",
   publicationEnd: "",
   isFree: true,

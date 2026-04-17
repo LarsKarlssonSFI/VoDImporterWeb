@@ -25,17 +25,52 @@ export default async (request) => {
   try {
     const result = await fetchFilmApiTitle(fetch, API_BASE_URL, filmId, USERNAME, PASSWORD);
 
-    if (!result.title) {
-      return new Response(JSON.stringify({ filmId, title: null, payload: result.payload, error: result.error }), {
-        status: 404,
-        headers: { "content-type": "application/json" },
-      });
+    if (
+      !result.title &&
+      !result.originalTitle &&
+      result.dialogueLanguages.length === 0 &&
+      result.cast.length === 0 &&
+      result.directors.length === 0 &&
+      result.countryOfOrigin === null &&
+      result.premiereYear === null
+    ) {
+      return new Response(
+        JSON.stringify({
+          filmId,
+          title: null,
+          originalTitle: null,
+          dialogueLanguages: [],
+          cast: [],
+          directors: [],
+          countryOfOrigin: null,
+          premiereYear: null,
+          payload: result.payload,
+          error: result.error,
+        }),
+        {
+          status: 404,
+          headers: { "content-type": "application/json" },
+        },
+      );
     }
 
-    return new Response(JSON.stringify({ filmId, title: result.title, payload: result.payload }), {
-      status: 200,
-      headers: { "content-type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        filmId,
+        title: result.title,
+        originalTitle: result.originalTitle,
+        dialogueLanguages: result.dialogueLanguages,
+        cast: result.cast,
+        directors: result.directors,
+        countryOfOrigin: result.countryOfOrigin,
+        premiereYear: result.premiereYear,
+        payload: result.payload,
+      }),
+      {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      },
+    );
   } catch (error) {
     return new Response(
       JSON.stringify({

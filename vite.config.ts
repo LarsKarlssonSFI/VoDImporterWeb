@@ -34,8 +34,39 @@ export default defineConfig(({ mode }) => {
 
             try {
               const result = await fetchFilmApiTitle(fetch, apiBaseUrl, filmId, username, password);
-              res.statusCode = result.title ? 200 : 404;
-              res.end(JSON.stringify({ filmId, title: result.title, payload: result.payload, error: result.error }));
+              const originalTitle = "originalTitle" in result ? result.originalTitle : null;
+              const dialogueLanguages =
+                "dialogueLanguages" in result && Array.isArray(result.dialogueLanguages) ? result.dialogueLanguages : [];
+              const cast = "cast" in result && Array.isArray(result.cast) ? result.cast : [];
+              const directors = "directors" in result && Array.isArray(result.directors) ? result.directors : [];
+              const countryOfOrigin =
+                "countryOfOrigin" in result && typeof result.countryOfOrigin === "string" ? result.countryOfOrigin : null;
+              const premiereYear =
+                "premiereYear" in result && typeof result.premiereYear === "number" ? result.premiereYear : null;
+              res.statusCode =
+                result.title ||
+                originalTitle ||
+                dialogueLanguages.length > 0 ||
+                cast.length > 0 ||
+                directors.length > 0 ||
+                countryOfOrigin !== null ||
+                premiereYear !== null
+                  ? 200
+                  : 404;
+              res.end(
+                JSON.stringify({
+                  filmId,
+                  title: result.title,
+                  originalTitle,
+                  dialogueLanguages,
+                  cast,
+                  directors,
+                  countryOfOrigin,
+                  premiereYear,
+                  payload: result.payload,
+                  error: result.error,
+                }),
+              );
             } catch (error) {
               res.statusCode = 502;
               res.end(
