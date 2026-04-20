@@ -545,7 +545,7 @@ function toUnixTimestamp(rawDate: string, hours: number, minutes: number) {
 export function exportRowForJson(row: FilmRowState): ExportRow {
   const labels = [...row.Labels];
   labels.push(
-    row.IsFree ? "packid_DXFEPCKS48FT7A5WGL5GDMGCMPCK" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK",
+    row.IsFree ? "packid_9KTLMVEGFMM1XDIK0TTFV1U38PCK" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK",
   );
   for (const collection of row.Collections) {
     const normalizedCollection = collection.trim();
