@@ -42,7 +42,7 @@ export default function App() {
   const [status, setStatus] = useState<string>("Redo att lägga till första raden.");
   const [error, setError] = useState<string>("");
   const [isExporting, setIsExporting] = useState(false);
-  const [exportSeparateFiles, setExportSeparateFiles] = useState(false);
+  const [exportSeparateFiles, setExportSeparateFiles] = useState(true);
   const [hasLoadedRows, setHasLoadedRows] = useState(false);
   const [isLoadingTitle, setIsLoadingTitle] = useState(false);
   const [isImageSectionOpen, setIsImageSectionOpen] = useState(false);
