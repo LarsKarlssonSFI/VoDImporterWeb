@@ -20,6 +20,7 @@ export type ExportRow = {
   labels: string[];
   kind: "movie";
   title: string;
+  customId: string;
   customTags1: string[];
   customTags2: string[];
   cast: string[];

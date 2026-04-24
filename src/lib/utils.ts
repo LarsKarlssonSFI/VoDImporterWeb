@@ -573,6 +573,7 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     labels,
     kind: "movie",
     title: row.Title,
+    customId: `id${row.FilmID}`,
     customTags1: row.OriginalTitle ? [row.OriginalTitle] : [],
     customTags2: [...row.DialogueLanguages],
     cast: [...row.Cast],
