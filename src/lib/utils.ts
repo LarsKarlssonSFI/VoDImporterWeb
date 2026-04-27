@@ -760,7 +760,7 @@ const WORKBOOK_HEADER_ALIASES = {
   publicationStart: ["publiceringsdatum", "startpublicering"],
   publicationEnd: ["slutavtalsdatum", "avpublicering"],
   publicationStatus: ["publiceringsstatus", "status"],
-  labels: ["labels"],
+  labels: ["labels", "labels1", "labels2", "labels3", "labels4"],
   collections: ["collection", "collections"],
   isFree: ["gratis"],
   genres: ["genres"],
@@ -782,6 +782,7 @@ function findWorkbookHeaderRow(rows: unknown[][]) {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length, 12); rowIndex += 1) {
     const row = rows[rowIndex] ?? [];
     const mapping = new Map<WorkbookColumnKey, number>();
+    const labelColumnIndexes: number[] = [];
 
     row.forEach((cell, columnIndex) => {
       const normalized = normalizeHeaderName(cell);
@@ -789,6 +790,9 @@ function findWorkbookHeaderRow(rows: unknown[][]) {
         return;
       }
       (Object.entries(WORKBOOK_HEADER_ALIASES) as [WorkbookColumnKey, string[]][]).forEach(([key, aliases]) => {
+        if (key === "labels" && aliases.includes(normalized)) {
+          labelColumnIndexes.push(columnIndex);
+        }
         if (!mapping.has(key) && aliases.includes(normalized)) {
           mapping.set(key, columnIndex);
         }
@@ -798,7 +802,7 @@ function findWorkbookHeaderRow(rows: unknown[][]) {
     const hasFilmId = mapping.has("filmId");
     const relevantCount = relevantKeys.filter((key) => mapping.has(key)).length;
     if (hasFilmId && relevantCount > 0) {
-      return { rowIndex, mapping };
+      return { rowIndex, mapping, labelColumnIndexes };
     }
   }
 
@@ -810,6 +814,10 @@ function getCell(row: unknown[], index: number | undefined) {
     return "";
   }
   return row[index];
+}
+
+function getLabelCells(row: unknown[], labelColumnIndexes: number[]) {
+  return labelColumnIndexes.flatMap((columnIndex) => splitImportedList(row[columnIndex]));
 }
 
 export async function importRowsFromWorkbook(file: File): Promise<WorkbookImportRow[]> {
@@ -829,7 +837,7 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
       return;
     }
 
-    const { rowIndex, mapping } = headerInfo;
+    const { rowIndex, mapping, labelColumnIndexes } = headerInfo;
     for (let index = rowIndex + 1; index < rows.length; index += 1) {
       const row = rows[index] ?? [];
       const filmIdValue = String(getCell(row, mapping.get("filmId")) ?? "").trim();
@@ -849,7 +857,7 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
 
       const publicationStart = parseImportedDate(getCell(row, mapping.get("publicationStart")));
       const publicationEnd = parseImportedDate(getCell(row, mapping.get("publicationEnd")));
-      const labels = splitImportedList(getCell(row, mapping.get("labels")));
+      const labels = [...new Set(getLabelCells(row, labelColumnIndexes))];
       const collections = splitImportedList(getCell(row, mapping.get("collections")));
       const genres = splitImportedList(getCell(row, mapping.get("genres")));
       const description = String(getCell(row, mapping.get("description")) ?? "").trim();
