@@ -542,8 +542,21 @@ function toUnixTimestamp(rawDate: string, hours: number, minutes: number) {
   return Math.floor(new Date(year, monthIndex, day, hours, minutes, 0, 0).getTime() / 1000);
 }
 
+function formatDashedDate(rawDate: string) {
+  const trimmed = rawDate.trim();
+  const match = trimmed.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (!match) {
+    throw new Error(`Ogiltigt datumformat för export: ${rawDate}`);
+  }
+
+  return `${match[1]}-${match[2]}-${match[3]}`;
+}
+
 export function exportRowForJson(row: FilmRowState): ExportRow {
   const labels = [...row.Labels];
+  if (row.IsFree) {
+    labels.push("Gratis");
+  }
   labels.push(
     row.IsFree ? "packid_9KTLMVEGFMM1XDIK0TTFV1U38PCK" : "packid_1WCJC6Y2AWABO2FE88D9RENECPCK",
   );
@@ -576,6 +589,7 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     customId: `id${row.FilmID}`,
     customTags1: row.OriginalTitle ? [row.OriginalTitle] : [],
     customTags2: [...row.DialogueLanguages],
+    customTags3: row.PublicationEnd.trim() ? [formatDashedDate(row.PublicationEnd)] : [],
     cast: [...row.Cast],
     directors: [...row.Directors],
     genres: [...row.Genres],

@@ -23,6 +23,7 @@ export type ExportRow = {
   customId: string;
   customTags1: string[];
   customTags2: string[];
+  customTags3: string[];
   cast: string[];
   directors: string[];
   countryWhitelist?: string[];
