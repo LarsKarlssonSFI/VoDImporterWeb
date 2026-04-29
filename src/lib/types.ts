@@ -49,7 +49,9 @@ export type FilmRowState = {
   PublicationEnd: string;
   IsFree: boolean;
   Territory: string;
-  Labels: string[];
+  FilmType: string;
+  Landscape: string;
+  Decade: string;
   Genres: string[];
   Description: string;
   Collections: string[];
@@ -82,7 +84,9 @@ export type FormState = {
   publicationEnd: string;
   isFree: boolean;
   territory: string;
-  labels: string[];
+  filmType: string;
+  landscape: string;
+  decade: string;
   genres: string[];
   description: string;
   collections: string[];
@@ -104,7 +108,8 @@ export type WorkbookImportRow = {
   publicationEnd?: string;
   isFree?: boolean;
   territory: string;
-  labels?: string[];
+  filmType?: string;
+  landscape?: string;
   genres?: string[];
   description?: string;
   collections?: string[];

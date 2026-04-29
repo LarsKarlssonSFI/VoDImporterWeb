@@ -2,34 +2,121 @@ import type { FilmRowState, FormState } from "./types";
 
 export const DEFAULT_GENRE_OPTIONS = [
   "Action",
-  "Barnfilm",
-  "Dokumentar",
+  "Biografisk",
+  "Dokumentär",
   "Drama",
-  "Familj",
+  "Experiment",
+  "Fantasy",
+  "Historisk",
   "Komedi",
-  "Kortfilm",
+  "Krig",
+  "Kriminal",
+  "Musik/Dans",
+  "Musikal",
+  "Natur",
   "Romantik",
+  "Science Fiction",
   "Skräck",
-  "Spänning",
+  "Sport",
   "Thriller",
-  "Ungdomsfilm",
+  "Västern",
+  "Äventyr",
 ];
 
 export const DEFAULT_COLLECTION_OPTIONS = [
-  "Jan Troell", 
-  "30 dagar", 
+  "Dagens film",
+  "Månadens filmer",
+  "Svenska klassiker",
   "Svenska bilder",
-  "Merchant-Ivory-Jhabvala",
+  "Redaktionen rekommenderar",
+  "Populärt",
+  "Kommande",
+  "Pärlor ur arkivet",
+  "HBTQAI+",
+  "Kvinnliga regissörer",
+  "Stumfilmer",
+  "Journalfilmer",
+  "Kortfilmsklassiker",
+  "Jan Troell",
   "Konrad Wolf",
-  "Roberto Rossellini",
-  "Sverige 80"
+  "Věra Chytilová",
+  "Jean-Pierre Melville",
+  "World Cinema Project",
+  "Roland Klick",
+  "Peter Weiss",
 ];
 
-export const DEFAULT_LABEL_OPTIONS = [
-  "Spelfilm",
-  "Beställningsfilm",
-  "80-tal"
+export const DECADE_OPTIONS = [
+  "1890 - 1899",
+  "1900 - 1909",
+  "1910 - 1919",
+  "1920 - 1929",
+  "1930 - 1939",
+  "1940 - 1949",
+  "1950 - 1959",
+  "1960 - 1969",
+  "1970 - 1979",
+  "1980 - 1989",
+  "1990 - 1999",
+  "2000 - 2009",
+  "2010 - 2019",
+  "2020 - 2029",
 ];
+
+export const FILM_TYPE_OPTIONS = [
+  "Spelfilm",
+  "Dokumentär",
+  "Barnfilm",
+  "Fragment",
+  "Konst- & experimentfilm",
+  "Stumfilm",
+  "Journalfilm",
+  "Beställningsfilm",
+  "Ungdomsfilm",
+  "Amatörfilm",
+  "Kortfilm",
+  "Långfilm",
+  "Reklamfilm",
+];
+
+export const LANDSCAPE_OPTIONS = [
+  "Blekinge",
+  "Bohuslän",
+  "Dalarna",
+  "Dalsland",
+  "Gästrikland",
+  "Gotland",
+  "Halland",
+  "Hälsingland",
+  "Härjedalen",
+  "Jämtland",
+  "Lappland",
+  "Medelpad",
+  "Norrbotten",
+  "Närke",
+  "Skåne",
+  "Småland",
+  "Södermanland",
+  "Uppland",
+  "Värmland",
+  "Västerbotten",
+  "Västergötland",
+  "Västmanland",
+  "Ångermanland",
+  "Öland",
+  "Östergötland",
+  "Stockholm",
+];
+
+export function getDecadeOptionForYear(year: number | null) {
+  if (typeof year !== "number" || !Number.isInteger(year)) {
+    return "";
+  }
+
+  const decadeStart = Math.floor(year / 10) * 10;
+  const decadeLabel = `${decadeStart} - ${decadeStart + 9}`;
+  return DECADE_OPTIONS.includes(decadeLabel) ? decadeLabel : "";
+}
 
 export const DEFAULT_TERRITORY_OPTIONS = ["Sverige", "Danmark", "Finland", "Norge", "Norden"];
 
@@ -91,9 +178,19 @@ export const TABLE_COLUMNS: TableColumn[] = [
     value: (row) => row.PublicationEnd,
   },
   {
-    key: "labels",
-    label: "Labels",
-    value: (row) => row.Labels.join(";"),
+    key: "filmType",
+    label: "Filmtyp",
+    value: (row) => row.FilmType,
+  },
+  {
+    key: "landscape",
+    label: "Landskap",
+    value: (row) => row.Landscape,
+  },
+  {
+    key: "decade",
+    label: "Årtionde",
+    value: (row) => row.Decade,
   },
   {
     key: "genres",
@@ -109,16 +206,6 @@ export const TABLE_COLUMNS: TableColumn[] = [
     key: "isFree",
     label: "Gratis",
     value: (row) => (row.IsFree ? "✔" : ""),
-  },
-  {
-    key: "landscapeImage",
-    label: "H-bild",
-    value: (row) => (row.LandscapeImage ? "✔" : ""),
-  },
-  {
-    key: "portraitImage",
-    label: "V-bild",
-    value: (row) => (row.PortraitImage ? "✔" : ""),
   },
 //  {
 //    key: "territory",
@@ -150,7 +237,9 @@ export const createEmptyForm = (): FormState => ({
   publicationStart: "2026-05-04",
   publicationEnd: "",
   isFree: true,
-  labels: [],
+  filmType: "",
+  landscape: "",
+  decade: "",
   genres: [],
   description: "",
   collections: [],

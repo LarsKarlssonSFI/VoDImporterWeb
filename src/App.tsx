@@ -6,11 +6,14 @@ import { OptionEditor } from "./components/OptionEditor";
 import { PreviewDialog } from "./components/PreviewDialog";
 import {
   createEmptyForm,
+  DECADE_OPTIONS,
   DEFAULT_COLLECTION_OPTIONS,
-  DEFAULT_LABEL_OPTIONS,
   DEFAULT_GENRE_OPTIONS,
   DEFAULT_TERRITORY_OPTIONS,
   EXPORT_BASENAME,
+  FILM_TYPE_OPTIONS,
+  getDecadeOptionForYear,
+  LANDSCAPE_OPTIONS,
   TABLE_COLUMNS,
 } from "./lib/constants";
 import type { CropPreviewState, FilmRowState, FormState } from "./lib/types";
@@ -31,7 +34,6 @@ type TabKey = "importer" | "settings";
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabKey>("importer");
-  const [labelOptions, setLabelOptions] = useState<string[]>(() => [...DEFAULT_LABEL_OPTIONS]);
   const [genreOptions, setGenreOptions] = useState<string[]>(() => [...DEFAULT_GENRE_OPTIONS]);
   const [collectionOptions, setCollectionOptions] = useState<string[]>(() => [...DEFAULT_COLLECTION_OPTIONS]);
   const [territoryOptions, setTerritoryOptions] = useState<string[]>(() => [...DEFAULT_TERRITORY_OPTIONS]);
@@ -49,17 +51,6 @@ export default function App() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
-    if (form.labels.every((label) => labelOptions.includes(label))) {
-      return;
-    }
-
-    setForm((current) => ({
-      ...current,
-      labels: current.labels.filter((label) => labelOptions.includes(label)),
-    }));
-  }, [form.labels, labelOptions]);
-
-  useEffect(() => {
     if (territoryOptions.includes(form.territory)) {
       return;
     }
@@ -69,6 +60,21 @@ export default function App() {
       territory: territoryOptions[0] ?? "",
     }));
   }, [form.territory, territoryOptions]);
+
+  useEffect(() => {
+    const trimmedPremiereYear = form.premiereYear.trim();
+    const derivedDecade = /^\d{4}$/.test(trimmedPremiereYear)
+      ? getDecadeOptionForYear(Number(trimmedPremiereYear))
+      : "";
+    if (form.decade === derivedDecade) {
+      return;
+    }
+
+    setForm((current) => ({
+      ...current,
+      decade: derivedDecade,
+    }));
+  }, [form.decade, form.premiereYear]);
 
   useEffect(() => {
     const storedRows = loadStoredRows();
@@ -112,7 +118,8 @@ export default function App() {
         current.cast.length === 0 &&
         current.directors.length === 0 &&
         current.countryOfOrigin === "" &&
-        current.premiereYear === ""
+        current.premiereYear === "" &&
+        current.decade === ""
           ? current
           : {
               ...current,
@@ -123,6 +130,7 @@ export default function App() {
               directors: [],
               countryOfOrigin: "",
               premiereYear: "",
+              decade: "",
             },
       );
       return;
@@ -137,7 +145,8 @@ export default function App() {
         current.cast.length === 0 &&
         current.directors.length === 0 &&
         current.countryOfOrigin === "" &&
-        current.premiereYear === ""
+        current.premiereYear === "" &&
+        current.decade === ""
           ? current
           : {
               ...current,
@@ -148,6 +157,7 @@ export default function App() {
               directors: [],
               countryOfOrigin: "",
               premiereYear: "",
+              decade: "",
             },
       );
       return;
@@ -193,6 +203,10 @@ export default function App() {
               typeof payload.premiereYear === "number" && Number.isInteger(payload.premiereYear)
                 ? String(payload.premiereYear)
                 : "",
+            decade:
+              typeof payload.premiereYear === "number" && Number.isInteger(payload.premiereYear)
+                ? getDecadeOptionForYear(payload.premiereYear)
+                : "",
           };
         });
         setError("");
@@ -211,6 +225,7 @@ export default function App() {
                 directors: [],
                 countryOfOrigin: "",
                 premiereYear: "",
+                decade: "",
               }
             : current,
         );
@@ -473,7 +488,8 @@ export default function App() {
               PublicationEnd: imported.publicationEnd ?? "",
               IsFree: imported.isFree ?? existing.IsFree,
               Territory: "Sverige",
-              Labels: imported.labels ?? existing.Labels,
+              FilmType: imported.filmType ?? existing.FilmType,
+              Landscape: imported.landscape ?? existing.Landscape,
               Genres: imported.genres ?? existing.Genres,
               Description: imported.description ?? existing.Description,
               Collections: imported.collections ?? existing.Collections,
@@ -492,11 +508,13 @@ export default function App() {
             Directors: [],
             CountryOfOrigin: "",
             PremiereYear: null,
+            FilmType: imported.filmType ?? "",
+            Landscape: imported.landscape ?? "",
+            Decade: "",
             PublicationStart: imported.publicationStart ?? "",
             PublicationEnd: imported.publicationEnd ?? "",
             IsFree: imported.isFree ?? false,
             Territory: "Sverige",
-            Labels: imported.labels ?? [],
             Genres: imported.genres ?? [],
             Description: imported.description ?? "",
             Collections: imported.collections ?? [],
@@ -567,6 +585,7 @@ export default function App() {
                   Directors: titlesByFilmId.get(row.FilmID)?.directors || row.Directors,
                   CountryOfOrigin: titlesByFilmId.get(row.FilmID)?.countryOfOrigin || row.CountryOfOrigin,
                   PremiereYear: titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear,
+                  Decade: getDecadeOptionForYear(titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear),
                 }
               : row,
           ),
@@ -598,15 +617,6 @@ export default function App() {
     setForm((current) => ({
       ...current,
       genres: current.genres.filter((value) => cleaned.includes(value)),
-    }));
-  }
-
-  function updateLabels(nextLabels: string[]) {
-    const cleaned = cleanOptionList(nextLabels, DEFAULT_LABEL_OPTIONS);
-    setLabelOptions(cleaned);
-    setForm((current) => ({
-      ...current,
-      labels: current.labels.filter((label) => cleaned.includes(label)),
     }));
   }
 
@@ -655,8 +665,8 @@ export default function App() {
               <strong>{genreOptions.length}</strong>
             </div>
             <div className="stat-card">
-              <span>Labels</span>
-              <strong>{labelOptions.length}</strong>
+              <span>Filmtyper</span>
+              <strong>{FILM_TYPE_OPTIONS.length}</strong>
             </div>
           </div>
         </header>
@@ -811,83 +821,97 @@ export default function App() {
               </div>
 
               <div className="form-grid form-grid--secondary">
-                <fieldset className="field fieldset fieldset--genres">
-                  <legend>Genres</legend>
-                  <div className="chip-grid">
-                    {genreOptions.map((genre) => {
-                      const selected = form.genres.includes(genre);
-                      return (
-                        <button
-                          key={genre}
-                          type="button"
-                          className={selected ? "chip chip--selected" : "chip"}
-                          onClick={() =>
-                            updateForm(
-                              "genres",
-                              selected
-                                ? form.genres.filter((value) => value !== genre)
-                                : [...form.genres, genre],
-                            )
-                          }
-                        >
-                          {genre}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
+                <div className="form-column form-column--genres">
+                  <fieldset className="field fieldset">
+                    <legend>Genres</legend>
+                    <div className="chip-grid">
+                      {genreOptions.map((genre) => {
+                        const selected = form.genres.includes(genre);
+                        return (
+                          <button
+                            key={genre}
+                            type="button"
+                            className={selected ? "chip chip--selected" : "chip"}
+                            onClick={() =>
+                              updateForm(
+                                "genres",
+                                selected
+                                  ? form.genres.filter((value) => value !== genre)
+                                  : [...form.genres, genre],
+                              )
+                            }
+                          >
+                            {genre}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
 
-                <fieldset className="field fieldset fieldset--collections">
-                  <legend>Collections</legend>
-                  <div className="chip-grid">
-                    {collectionOptions.map((collection) => {
-                      const selected = form.collections.includes(collection);
-                      return (
-                        <button
-                          key={collection}
-                          type="button"
-                          className={selected ? "chip chip--selected" : "chip"}
-                          onClick={() =>
-                            updateForm(
-                              "collections",
-                              selected
-                                ? form.collections.filter((value) => value !== collection)
-                                : [...form.collections, collection],
-                            )
-                          }
-                        >
-                          {collection}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
+                  <label className="field field--compact">
+                    <span>Filmtyp</span>
+                    <select value={form.filmType} onChange={(event) => updateForm("filmType", event.target.value)}>
+                      <option value="">Välj filmtyp</option>
+                      {FILM_TYPE_OPTIONS.map((filmType) => (
+                        <option key={filmType} value={filmType}>
+                          {filmType}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
 
-                <fieldset className="field fieldset fieldset--labels">
-                  <legend>Labels</legend>
-                  <div className="chip-grid">
-                    {labelOptions.map((label) => {
-                      const selected = form.labels.includes(label);
-                      return (
-                        <button
-                          key={label}
-                          type="button"
-                          className={selected ? "chip chip--selected" : "chip"}
-                          onClick={() =>
-                            updateForm(
-                              "labels",
-                              selected
-                                ? form.labels.filter((value) => value !== label)
-                                : [...form.labels, label],
-                            )
-                          }
-                        >
-                          {label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                </fieldset>
+                  <label className="field field--compact">
+                    <span>Landskap</span>
+                    <select value={form.landscape} onChange={(event) => updateForm("landscape", event.target.value)}>
+                      <option value="">Välj landskap</option>
+                      {LANDSCAPE_OPTIONS.map((landscape) => (
+                        <option key={landscape} value={landscape}>
+                          {landscape}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
+
+                <div className="form-column form-column--collections">
+                  <fieldset className="field fieldset">
+                    <legend>Collections</legend>
+                    <div className="chip-grid">
+                      {collectionOptions.map((collection) => {
+                        const selected = form.collections.includes(collection);
+                        return (
+                          <button
+                            key={collection}
+                            type="button"
+                            className={selected ? "chip chip--selected" : "chip"}
+                            onClick={() =>
+                              updateForm(
+                                "collections",
+                                selected
+                                  ? form.collections.filter((value) => value !== collection)
+                                  : [...form.collections, collection],
+                              )
+                            }
+                          >
+                            {collection}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+
+                  <label className="field field--compact field--decade-offset">
+                    <span>Årtionde</span>
+                    <select value={form.decade} onChange={(event) => updateForm("decade", event.target.value)}>
+                      <option value="">Välj årtionde</option>
+                      {DECADE_OPTIONS.map((decade) => (
+                        <option key={decade} value={decade}>
+                          {decade}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+                </div>
 
                 <label className="field field--description">
                   <span>Textbeskrivning</span>
@@ -1034,7 +1058,6 @@ export default function App() {
           </main>
         ) : (
           <main className="settings-grid">
-            <OptionEditor title="Labels" values={labelOptions} onChange={updateLabels} />
             <OptionEditor title="Genres" values={genreOptions} onChange={updateGenres} />
             <OptionEditor title="Collections" values={collectionOptions} onChange={updateCollections} />
             <OptionEditor title="Territorier" values={territoryOptions} onChange={updateTerritories} />

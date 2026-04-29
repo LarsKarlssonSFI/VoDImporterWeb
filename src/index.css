@@ -304,8 +304,14 @@ textarea:-webkit-autofill {
   align-items: start;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.12fr);
   grid-template-areas:
-    "genres collections description"
-    "labels labels description";
+    "genres-column collections-column description";
+}
+
+.form-column {
+  display: grid;
+  gap: 6px;
+  align-content: start;
+  min-width: 0;
 }
 
 .field {
@@ -375,16 +381,16 @@ textarea:-webkit-autofill {
   grid-column: span 2;
 }
 
-.fieldset--genres {
-  grid-area: genres;
+.form-column--genres {
+  grid-area: genres-column;
 }
 
-.fieldset--collections {
-  grid-area: collections;
+.form-column--collections {
+  grid-area: collections-column;
 }
 
-.fieldset--labels {
-  grid-area: labels;
+.field--decade-offset {
+  margin-top: 26px;
 }
 
 .field--description {
@@ -471,6 +477,7 @@ textarea:-webkit-autofill {
 .image-section {
   display: grid;
   gap: 14px;
+  margin-top: 22px;
 }
 
 .section-toggle {
@@ -863,9 +870,8 @@ textarea:-webkit-autofill {
   .form-grid--secondary {
     grid-template-columns: 1fr;
     grid-template-areas:
-      "genres"
-      "collections"
-      "labels"
+      "genres-column"
+      "collections-column"
       "description";
   }
 }
