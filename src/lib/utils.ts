@@ -84,6 +84,15 @@ function getLandscapeOption(value: string) {
   return LANDSCAPE_OPTIONS.find((option) => normalizeOptionValue(option) === normalized) ?? "";
 }
 
+function getDecadeOption(value: string) {
+  const normalized = normalizeOptionValue(value);
+  if (!normalized) {
+    return "";
+  }
+
+  return DECADE_OPTIONS.find((option) => normalizeOptionValue(option) === normalized) ?? "";
+}
+
 export const DEFAULT_CROP_SETTINGS: CropSettings = {
   zoom: 1.15,
   offsetX: 0,
@@ -250,21 +259,35 @@ export function loadStoredRows(): FilmRowState[] {
         Number.isInteger((row as StoredRow & { PremiereYear?: number }).PremiereYear)
           ? (row as StoredRow & { PremiereYear?: number }).PremiereYear ?? null
           : null;
-      const explicitDecade =
-        typeof (row as StoredRow & { Decade?: unknown }).Decade === "string"
-          ? ((row as StoredRow & { Decade?: string }).Decade ?? "").trim()
-          : "";
-      const inferredLegacyDecade = legacyLabels.find((label) => DECADE_OPTIONS.includes(label.trim()))?.trim() ?? "";
-      const explicitFilmType =
-        typeof (row as StoredRow & { FilmType?: unknown }).FilmType === "string"
-          ? getFilmTypeOption((row as StoredRow & { FilmType?: string }).FilmType ?? "")
-          : "";
-      const inferredLegacyFilmType = legacyLabels.map(getFilmTypeOption).find(Boolean) ?? "";
-      const explicitLandscape =
-        typeof (row as StoredRow & { Landscape?: unknown }).Landscape === "string"
-          ? getLandscapeOption((row as StoredRow & { Landscape?: string }).Landscape ?? "")
-          : "";
-      const inferredLegacyLandscape = legacyLabels.map(getLandscapeOption).find(Boolean) ?? "";
+      const rawDecade: unknown = (row as Record<string, unknown>).Decade;
+      const explicitDecade: string[] = Array.isArray(rawDecade)
+        ? rawDecade.filter((value): value is string => typeof value === "string").map((value) => value.trim()).filter(Boolean)
+        : typeof rawDecade === "string" && rawDecade.trim()
+          ? [rawDecade.trim()]
+          : [];
+      const inferredLegacyDecade: string[] = legacyLabels
+        .map((label) => label.trim())
+        .filter((label) => DECADE_OPTIONS.includes(label));
+      const rawFilmType: unknown = (row as Record<string, unknown>).FilmType;
+      const explicitFilmType: string[] = Array.isArray(rawFilmType)
+        ? rawFilmType
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => getFilmTypeOption(value))
+            .filter(Boolean)
+        : typeof rawFilmType === "string" && getFilmTypeOption(rawFilmType)
+          ? [getFilmTypeOption(rawFilmType)]
+          : [];
+      const inferredLegacyFilmType: string[] = legacyLabels.map(getFilmTypeOption).filter(Boolean);
+      const rawLandscape: unknown = (row as Record<string, unknown>).Landscape;
+      const explicitLandscape: string[] = Array.isArray(rawLandscape)
+        ? rawLandscape
+            .filter((value): value is string => typeof value === "string")
+            .map((value) => getLandscapeOption(value))
+            .filter(Boolean)
+        : typeof rawLandscape === "string" && getLandscapeOption(rawLandscape)
+          ? [getLandscapeOption(rawLandscape)]
+          : [];
+      const inferredLegacyLandscape: string[] = legacyLabels.map(getLandscapeOption).filter(Boolean);
 
       return {
         ...row,
@@ -291,9 +314,19 @@ export function loadStoredRows(): FilmRowState[] {
             ? ((row as StoredRow & { CountryOfOrigin?: string }).CountryOfOrigin ?? "")
             : "",
         PremiereYear: premiereYear,
-        FilmType: explicitFilmType || inferredLegacyFilmType,
-        Landscape: explicitLandscape || inferredLegacyLandscape,
-        Decade: explicitDecade || inferredLegacyDecade || getDecadeOptionForYear(premiereYear),
+        FilmType: explicitFilmType.length > 0 ? explicitFilmType : inferredLegacyFilmType,
+        Landscape: explicitLandscape.length > 0 ? explicitLandscape : inferredLegacyLandscape,
+        Decade: (() => {
+          if (explicitDecade.length > 0) return explicitDecade;
+          if (inferredLegacyDecade.length > 0) return inferredLegacyDecade;
+          const derived = getDecadeOptionForYear(premiereYear);
+          return derived ? [derived] : [];
+        })(),
+        OtherLabels: Array.isArray((row as StoredRow & { OtherLabels?: unknown }).OtherLabels)
+          ? (row as StoredRow & { OtherLabels?: unknown[] }).OtherLabels?.filter(
+              (value): value is string => typeof value === "string",
+            ) ?? []
+          : [],
         landscapeAsset: deserializeImageSelection(row.landscapeAsset),
         portraitAsset: deserializeImageSelection(row.portraitAsset),
       };
@@ -535,11 +568,20 @@ export function buildRowFromForm(form: FormState): FilmRowState {
   if (trimmedPremiereYear && !/^\d{4}$/.test(trimmedPremiereYear)) {
     throw new Error("Premiärår måste anges som ett fyrsiffrigt årtal.");
   }
-  if (form.filmType && !FILM_TYPE_OPTIONS.includes(form.filmType)) {
-    throw new Error("Filmtyp måste vara ett giltigt val.");
+  for (const value of form.filmType) {
+    if (!FILM_TYPE_OPTIONS.includes(value)) {
+      throw new Error(`Filmtyp måste vara ett giltigt val: ${value}`);
+    }
   }
-  if (form.landscape && !LANDSCAPE_OPTIONS.includes(form.landscape)) {
-    throw new Error("Landskap måste vara ett giltigt val.");
+  for (const value of form.landscape) {
+    if (!LANDSCAPE_OPTIONS.includes(value)) {
+      throw new Error(`Landskap måste vara ett giltigt val: ${value}`);
+    }
+  }
+  for (const value of form.decade) {
+    if (!DECADE_OPTIONS.includes(value)) {
+      throw new Error(`Årtionde måste vara ett giltigt val: ${value}`);
+    }
   }
   for (const rawDate of [form.publicationStart, form.publicationEnd]) {
     if (!rawDate) {
@@ -564,9 +606,10 @@ export function buildRowFromForm(form: FormState): FilmRowState {
     PublicationEnd: form.publicationEnd,
     IsFree: form.isFree,
     Territory: form.territory,
-    FilmType: form.filmType,
-    Landscape: form.landscape,
-    Decade: form.decade.trim(),
+    FilmType: [...form.filmType],
+    Landscape: [...form.landscape],
+    Decade: [...form.decade],
+    OtherLabels: [...form.otherLabels],
     Genres: [...form.genres],
     Description: form.description.trim(),
     Collections: [...form.collections],
@@ -594,9 +637,16 @@ export function rowToForm(row: FilmRowState): FormState {
     publicationEnd: row.PublicationEnd,
     isFree: row.IsFree,
     territory: row.Territory,
-    filmType: row.FilmType,
-    landscape: row.Landscape,
-    decade: row.Decade || getDecadeOptionForYear(row.PremiereYear),
+    filmType: [...row.FilmType],
+    landscape: [...row.Landscape],
+    decade:
+      row.Decade.length > 0
+        ? [...row.Decade]
+        : (() => {
+            const derived = getDecadeOptionForYear(row.PremiereYear);
+            return derived ? [derived] : [];
+          })(),
+    otherLabels: [...(row.OtherLabels ?? [])],
     genres: [...row.Genres],
     description: row.Description,
     collections: [...row.Collections],
@@ -631,7 +681,12 @@ function formatDashedDate(rawDate: string) {
 }
 
 export function exportRowForJson(row: FilmRowState): ExportRow {
-  const labels = [row.FilmType, row.Landscape, row.Decade].filter(Boolean);
+  const labels = [
+    ...row.FilmType,
+    ...row.Landscape,
+    ...row.Decade,
+    ...(row.OtherLabels ?? []),
+  ].filter(Boolean);
   if (row.IsFree) {
     labels.push("Gratis");
   }
@@ -846,14 +901,23 @@ function parseImportedDate(value: unknown) {
   return "";
 }
 
+const LABEL_HEADER_ALIASES = [
+  "label1",
+  "labels1",
+  "label2",
+  "labels2",
+  "label3",
+  "labels3",
+  "label4",
+  "labels4",
+];
+
 const WORKBOOK_HEADER_ALIASES = {
   filmId: ["filmid"],
   title: ["titel"],
   publicationStart: ["publiceringsdatum", "startpublicering"],
   publicationEnd: ["slutavtalsdatum", "avpublicering"],
   publicationStatus: ["publiceringsstatus", "status"],
-  filmType: ["label1", "labels1"],
-  landscape: ["label4", "labels4"],
   collections: ["collection", "collections"],
   isFree: ["gratis"],
   genres: ["genres"],
@@ -864,12 +928,16 @@ const WORKBOOK_HEADER_ALIASES = {
 
 type WorkbookColumnKey = keyof typeof WORKBOOK_HEADER_ALIASES;
 
-function findWorkbookHeaderRow(rows: unknown[][]) {
+type WorkbookHeaderInfo = {
+  rowIndex: number;
+  mapping: Map<WorkbookColumnKey, number>;
+  labelColumnIndexes: number[];
+};
+
+function findWorkbookHeaderRow(rows: unknown[][]): WorkbookHeaderInfo | null {
   const relevantKeys: WorkbookColumnKey[] = [
     "publicationStart",
     "publicationEnd",
-    "filmType",
-    "landscape",
     "collections",
     "isFree",
     "genres",
@@ -881,11 +949,15 @@ function findWorkbookHeaderRow(rows: unknown[][]) {
   for (let rowIndex = 0; rowIndex < Math.min(rows.length, 12); rowIndex += 1) {
     const row = rows[rowIndex] ?? [];
     const mapping = new Map<WorkbookColumnKey, number>();
+    const labelColumnIndexes: number[] = [];
 
     row.forEach((cell, columnIndex) => {
       const normalized = normalizeHeaderName(cell);
       if (!normalized) {
         return;
+      }
+      if (LABEL_HEADER_ALIASES.includes(normalized)) {
+        labelColumnIndexes.push(columnIndex);
       }
       (Object.entries(WORKBOOK_HEADER_ALIASES) as [WorkbookColumnKey, string[]][]).forEach(([key, aliases]) => {
         if (!mapping.has(key) && aliases.includes(normalized)) {
@@ -896,12 +968,53 @@ function findWorkbookHeaderRow(rows: unknown[][]) {
 
     const hasFilmId = mapping.has("filmId");
     const relevantCount = relevantKeys.filter((key) => mapping.has(key)).length;
-    if (hasFilmId && relevantCount > 0) {
-      return { rowIndex, mapping };
+    if (hasFilmId && (relevantCount > 0 || labelColumnIndexes.length > 0)) {
+      return { rowIndex, mapping, labelColumnIndexes };
     }
   }
 
   return null;
+}
+
+function classifyImportedLabels(values: string[]) {
+  const filmType: string[] = [];
+  const landscape: string[] = [];
+  const decade: string[] = [];
+  const otherLabels: string[] = [];
+  const seen = new Set<string>();
+
+  for (const raw of values) {
+    const trimmed = raw.trim();
+    if (!trimmed || seen.has(trimmed)) {
+      continue;
+    }
+    seen.add(trimmed);
+
+    const filmTypeMatch = getFilmTypeOption(trimmed);
+    if (filmTypeMatch) {
+      if (!filmType.includes(filmTypeMatch)) {
+        filmType.push(filmTypeMatch);
+      }
+      continue;
+    }
+    const landscapeMatch = getLandscapeOption(trimmed);
+    if (landscapeMatch) {
+      if (!landscape.includes(landscapeMatch)) {
+        landscape.push(landscapeMatch);
+      }
+      continue;
+    }
+    const decadeMatch = getDecadeOption(trimmed);
+    if (decadeMatch) {
+      if (!decade.includes(decadeMatch)) {
+        decade.push(decadeMatch);
+      }
+      continue;
+    }
+    otherLabels.push(trimmed);
+  }
+
+  return { filmType, landscape, decade, otherLabels };
 }
 
 function getCell(row: unknown[], index: number | undefined) {
@@ -938,7 +1051,7 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
       return;
     }
 
-    const { rowIndex, mapping } = headerInfo;
+    const { rowIndex, mapping, labelColumnIndexes } = headerInfo;
     for (let index = rowIndex + 1; index < rows.length; index += 1) {
       const row = rows[index] ?? [];
       const filmIdValue = String(getCell(row, mapping.get("filmId")) ?? "").trim();
@@ -958,8 +1071,8 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
 
       const publicationStart = parseImportedDate(getCell(row, mapping.get("publicationStart")));
       const publicationEnd = parseImportedDate(getCell(row, mapping.get("publicationEnd")));
-      const filmType = getFilmTypeOption(splitImportedList(getCell(row, mapping.get("filmType")))[0] ?? "");
-      const landscape = getLandscapeOption(splitImportedList(getCell(row, mapping.get("landscape")))[0] ?? "");
+      const labelValues = labelColumnIndexes.flatMap((columnIndex) => splitImportedList(row[columnIndex]));
+      const { filmType, landscape, decade, otherLabels } = classifyImportedLabels(labelValues);
       const collections = splitImportedList(getCell(row, mapping.get("collections")));
       const genres = getImportedGenres(row, mapping);
       const description = String(getCell(row, mapping.get("description")) ?? "").trim();
@@ -973,6 +1086,8 @@ export async function importRowsFromWorkbook(file: File): Promise<WorkbookImport
         territory: "Sverige",
         filmType: filmType || undefined,
         landscape: landscape || undefined,
+        decade: decade || undefined,
+        otherLabels: otherLabels.length > 0 ? otherLabels : undefined,
         genres: genres.length > 0 ? genres : undefined,
         description: description || undefined,
         collections: collections.length > 0 ? collections : undefined,

@@ -2,6 +2,7 @@ import { ChevronDown, ChevronRight, Download, Film, LayoutPanelTop, Plus, Rows3,
 import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent } from "react";
 import { ImageField } from "./components/ImageField";
+import { MultiSelect } from "./components/MultiSelect";
 import { OptionEditor } from "./components/OptionEditor";
 import { PreviewDialog } from "./components/PreviewDialog";
 import {
@@ -62,18 +63,17 @@ export default function App() {
   }, [form.territory, territoryOptions]);
 
   useEffect(() => {
+    if (form.decade.length > 0) {
+      return;
+    }
     const trimmedPremiereYear = form.premiereYear.trim();
     const derivedDecade = /^\d{4}$/.test(trimmedPremiereYear)
       ? getDecadeOptionForYear(Number(trimmedPremiereYear))
       : "";
-    if (form.decade === derivedDecade) {
+    if (!derivedDecade) {
       return;
     }
-
-    setForm((current) => ({
-      ...current,
-      decade: derivedDecade,
-    }));
+    setForm((current) => (current.decade.length > 0 ? current : { ...current, decade: [derivedDecade] }));
   }, [form.decade, form.premiereYear]);
 
   useEffect(() => {
@@ -119,7 +119,7 @@ export default function App() {
         current.directors.length === 0 &&
         current.countryOfOrigin === "" &&
         current.premiereYear === "" &&
-        current.decade === ""
+        current.decade.length === 0
           ? current
           : {
               ...current,
@@ -130,7 +130,7 @@ export default function App() {
               directors: [],
               countryOfOrigin: "",
               premiereYear: "",
-              decade: "",
+              decade: [],
             },
       );
       return;
@@ -146,7 +146,7 @@ export default function App() {
         current.directors.length === 0 &&
         current.countryOfOrigin === "" &&
         current.premiereYear === "" &&
-        current.decade === ""
+        current.decade.length === 0
           ? current
           : {
               ...current,
@@ -157,7 +157,7 @@ export default function App() {
               directors: [],
               countryOfOrigin: "",
               premiereYear: "",
-              decade: "",
+              decade: [],
             },
       );
       return;
@@ -205,8 +205,11 @@ export default function App() {
                 : "",
             decade:
               typeof payload.premiereYear === "number" && Number.isInteger(payload.premiereYear)
-                ? getDecadeOptionForYear(payload.premiereYear)
-                : "",
+                ? (() => {
+                    const derived = getDecadeOptionForYear(payload.premiereYear);
+                    return derived ? [derived] : [];
+                  })()
+                : [],
           };
         });
         setError("");
@@ -225,7 +228,7 @@ export default function App() {
                 directors: [],
                 countryOfOrigin: "",
                 premiereYear: "",
-                decade: "",
+                decade: [],
               }
             : current,
         );
@@ -490,6 +493,8 @@ export default function App() {
               Territory: "Sverige",
               FilmType: imported.filmType ?? existing.FilmType,
               Landscape: imported.landscape ?? existing.Landscape,
+              Decade: imported.decade ?? existing.Decade,
+              OtherLabels: imported.otherLabels ?? existing.OtherLabels,
               Genres: imported.genres ?? existing.Genres,
               Description: imported.description ?? existing.Description,
               Collections: imported.collections ?? existing.Collections,
@@ -508,9 +513,10 @@ export default function App() {
             Directors: [],
             CountryOfOrigin: "",
             PremiereYear: null,
-            FilmType: imported.filmType ?? "",
-            Landscape: imported.landscape ?? "",
-            Decade: "",
+            FilmType: imported.filmType ?? [],
+            Landscape: imported.landscape ?? [],
+            Decade: imported.decade ?? [],
+            OtherLabels: imported.otherLabels ?? [],
             PublicationStart: imported.publicationStart ?? "",
             PublicationEnd: imported.publicationEnd ?? "",
             IsFree: imported.isFree ?? false,
@@ -585,7 +591,13 @@ export default function App() {
                   Directors: titlesByFilmId.get(row.FilmID)?.directors || row.Directors,
                   CountryOfOrigin: titlesByFilmId.get(row.FilmID)?.countryOfOrigin || row.CountryOfOrigin,
                   PremiereYear: titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear,
-                  Decade: getDecadeOptionForYear(titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear),
+                  Decade: (() => {
+                    if (row.Decade.length > 0) return row.Decade;
+                    const derived = getDecadeOptionForYear(
+                      titlesByFilmId.get(row.FilmID)?.premiereYear ?? row.PremiereYear,
+                    );
+                    return derived ? [derived] : [];
+                  })(),
                 }
               : row,
           ),
@@ -850,26 +862,32 @@ export default function App() {
 
                   <label className="field field--compact">
                     <span>Filmtyp</span>
-                    <select value={form.filmType} onChange={(event) => updateForm("filmType", event.target.value)}>
-                      <option value="">Välj filmtyp</option>
-                      {FILM_TYPE_OPTIONS.map((filmType) => (
-                        <option key={filmType} value={filmType}>
-                          {filmType}
-                        </option>
-                      ))}
-                    </select>
+                    <MultiSelect
+                      placeholder="Välj filmtyp"
+                      options={FILM_TYPE_OPTIONS}
+                      values={form.filmType}
+                      onChange={(next) => updateForm("filmType", next)}
+                    />
                   </label>
 
                   <label className="field field--compact">
-                    <span>Landskap</span>
-                    <select value={form.landscape} onChange={(event) => updateForm("landscape", event.target.value)}>
-                      <option value="">Välj landskap</option>
-                      {LANDSCAPE_OPTIONS.map((landscape) => (
-                        <option key={landscape} value={landscape}>
-                          {landscape}
-                        </option>
-                      ))}
-                    </select>
+                    <span>Plats</span>
+                    <MultiSelect
+                      placeholder="Välj plats"
+                      options={LANDSCAPE_OPTIONS}
+                      values={form.landscape}
+                      onChange={(next) => updateForm("landscape", next)}
+                    />
+                  </label>
+
+                  <label className="field field--compact">
+                    <span>Årtionde</span>
+                    <MultiSelect
+                      placeholder="Välj årtionde"
+                      options={DECADE_OPTIONS}
+                      values={form.decade}
+                      onChange={(next) => updateForm("decade", next)}
+                    />
                   </label>
                 </div>
 
@@ -900,17 +918,31 @@ export default function App() {
                     </div>
                   </fieldset>
 
-                  <label className="field field--compact field--decade-offset">
-                    <span>Årtionde</span>
-                    <select value={form.decade} onChange={(event) => updateForm("decade", event.target.value)}>
-                      <option value="">Välj årtionde</option>
-                      {DECADE_OPTIONS.map((decade) => (
-                        <option key={decade} value={decade}>
-                          {decade}
-                        </option>
-                      ))}
-                    </select>
-                  </label>
+                  <fieldset className="field fieldset">
+                    <legend>Övriga labels</legend>
+                    {form.otherLabels.length === 0 ? (
+                      <span className="field-hint">Inga övriga labels från Excel.</span>
+                    ) : (
+                      <div className="chip-grid">
+                        {form.otherLabels.map((label) => (
+                          <button
+                            key={label}
+                            type="button"
+                            className="chip chip--selected chip--extra"
+                            title="Klicka för att ta bort"
+                            onClick={() =>
+                              updateForm(
+                                "otherLabels",
+                                form.otherLabels.filter((value) => value !== label),
+                              )
+                            }
+                          >
+                            {label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </fieldset>
                 </div>
 
                 <label className="field field--description">

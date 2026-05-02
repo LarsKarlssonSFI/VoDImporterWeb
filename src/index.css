@@ -435,6 +435,108 @@ textarea:-webkit-autofill {
   color: var(--accent-strong);
 }
 
+.chip--extra {
+  border-style: dashed;
+  font-style: italic;
+}
+
+.field-hint {
+  color: var(--surface-text-soft);
+  font-size: 0.85rem;
+  font-style: italic;
+}
+
+.multi-select {
+  position: relative;
+  width: 100%;
+}
+
+.multi-select__trigger {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 11px 12px;
+  background: rgba(240, 235, 215, 0.06);
+  color: var(--surface-text);
+  text-align: left;
+  font: inherit;
+}
+
+.multi-select__trigger:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(240, 235, 215, 0.12);
+}
+
+.multi-select--open .multi-select__trigger {
+  border-color: var(--accent);
+}
+
+.multi-select__summary {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.multi-select__summary--placeholder {
+  color: var(--surface-text-soft);
+}
+
+.multi-select__chevron {
+  flex: 0 0 auto;
+  color: var(--surface-text-soft);
+  font-size: 0.8rem;
+}
+
+.multi-select__panel {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 20;
+  max-height: 280px;
+  overflow-y: auto;
+  border: 1px solid var(--border-strong);
+  border-radius: 12px;
+  padding: 6px;
+  background: var(--surface-muted);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.multi-select__option {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  color: var(--surface-text-muted);
+  cursor: pointer;
+}
+
+.multi-select__option:hover {
+  background: rgba(240, 235, 215, 0.06);
+}
+
+.multi-select__option--selected {
+  color: var(--surface-text);
+  background: var(--accent-soft);
+}
+
+.multi-select__option input {
+  width: auto;
+  margin: 0;
+  accent-color: var(--accent);
+}
+
 .checkbox-field {
   display: inline-flex;
   align-items: center;
