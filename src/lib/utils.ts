@@ -681,12 +681,13 @@ function formatDashedDate(rawDate: string) {
 }
 
 export function exportRowForJson(row: FilmRowState): ExportRow {
-  const labels = [
+  const excelLabels = [
     ...row.FilmType,
     ...row.Landscape,
     ...row.Decade,
     ...(row.OtherLabels ?? []),
   ].filter(Boolean);
+  const labels = [...excelLabels];
   if (row.IsFree) {
     labels.push("Gratis");
   }
@@ -723,6 +724,7 @@ export function exportRowForJson(row: FilmRowState): ExportRow {
     customTags1: row.OriginalTitle ? [row.OriginalTitle] : [],
     customTags2: [...row.DialogueLanguages],
     customTags3: row.PublicationEnd.trim() ? [formatDashedDate(row.PublicationEnd)] : [],
+    customTags4: excelLabels,
     cast: [...row.Cast],
     directors: [...row.Directors],
     genres: [...row.Genres],
